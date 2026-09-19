@@ -1,0 +1,6 @@
+{
+  "name": "Zamzam Fuel Management",
+  "description": "Web version of the Zamzam Fuel Management system with real-time sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
