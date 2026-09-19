@@ -13,7 +13,7 @@ export async function recalculateDatabase() {
     const readings = rSnap.docs.map(d => ({ ...d.data(), type: 'reading', time: d.data().date?.toMillis() || 0 }));
     
     // Combine and sort chronologically
-    const events = [...purchases, ...readings].sort((a, b) => a.time - b.time);
+    const events: any[] = [...purchases, ...readings].sort((a, b) => a.time - b.time);
     
     let pStock = 0, pAvg = 0, dStock = 0, dAvg = 0;
     let lastPReading = 0, lastDReading = 0;

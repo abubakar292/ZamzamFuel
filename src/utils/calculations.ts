@@ -31,13 +31,20 @@ export const totalProfit = (sold: number, ppl: number): number => sold * ppl;
 export const stockValue = (stock: number, avgPrice: number): number => stock * avgPrice;
 
 // 7. Cash in hand
+// Default: Total Sales - Expenses
+// But if initial investment is added (> 0): (Initial Investment - Purchases) + (Total Sales - Expenses)
 export const cashInHand = (
   initialInvestment: number,
   totalFuelSales: number,
-  totalExpenses: number,
-  totalPurchasesPaid: number,
-  totalVendorPayments: number
-): number => (Number(initialInvestment) || 0) + totalFuelSales - totalExpenses - totalPurchasesPaid - totalVendorPayments;
+  totalPurchases: number,
+  totalExpenses: number
+): number => {
+  const inv = Number(initialInvestment) || 0;
+  if (inv > 0) {
+    return inv + totalFuelSales - totalPurchases - totalExpenses;
+  }
+  return totalFuelSales - totalExpenses;
+};
 
 // 8. Vendor qarz
 export const vendorQarz = (purchases: number, paid: number): number =>

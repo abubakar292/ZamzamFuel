@@ -84,7 +84,7 @@ export default function PurchasesPage() {
 
   const netSubtotal = items.reduce((acc, item) => acc + item.subtotal, 0);
   const total = netSubtotal;
-  const paid = parseFloat(amountPaid) || 0;
+  const paid = paymentType === 'Cash' && (!amountPaid || amountPaid === '') ? total : (parseFloat(amountPaid) || 0);
   const remainingBalance = Math.max(0, total - paid);
 
   const handleSave = async () => {

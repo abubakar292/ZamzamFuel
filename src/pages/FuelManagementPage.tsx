@@ -4,7 +4,7 @@ import { recalculateDatabase } from '../utils/recalculate';
 import { Edit3, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
-import { FuelPrices } from '../types';
+import { FuelPrices, FuelReading } from '../types';
 import { useToast } from '../components/Toast';
 import { dailySold, dailyAmount, profitPerLiter, totalProfit, formatAmount, formatLiters } from '../utils/calculations';
 import { Droplets, Fuel, Save } from 'lucide-react';

@@ -17,8 +17,7 @@ export default function DashboardPage() {
   const [initialInvestment, setInitialInvestment] = useState(0);
   const [totalSales, setTotalSales] = useState(0);
   const [totalExpenses, setTotalExpenses] = useState(0);
-  const [totalPurchasesPaid, setTotalPurchasesPaid] = useState(0);
-  const [totalVendorPayments, setTotalVendorPayments] = useState(0);
+  const [totalPurchases, setTotalPurchases] = useState(0);
   const [cashInHand, setCashInHand] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -69,46 +68,48 @@ export default function DashboardPage() {
     const unsubProfile = onSnapshot(getUserDoc('appSettings', 'profile'), (doc) => {
       const inv = Number(doc.data()?.initialInvestment) || 0;
       setInitialInvestment(inv);
-      updateCash(undefined, undefined, undefined, undefined, inv);
+      updateCash(undefined, undefined, undefined, inv);
     });
 
     const unsubReadings = onSnapshot(getUserCollection('fuelReadings'), (snapshot) => {
       let sales = 0;
       snapshot.forEach(doc => sales += (doc.data().subtotal || 0));
       setTotalSales(sales);
-      updateCash(sales, undefined, undefined, undefined, undefined);
+      updateCash(sales, undefined, undefined, undefined);
     });
 
     const unsubExpenses = onSnapshot(getUserCollection('expenses'), (snapshot) => {
       let exp = 0;
       snapshot.forEach(doc => exp += (doc.data().amount || 0));
       setTotalExpenses(exp);
-      updateCash(undefined, exp, undefined, undefined, undefined);
-    });
-
-    const unsubPayments = onSnapshot(getUserCollection('vendorPayments'), (snapshot) => {
-      let pay = 0;
-      snapshot.forEach(doc => pay += (doc.data().amount || 0));
-      setTotalVendorPayments(pay);
-      updateCash(undefined, undefined, pay, undefined, undefined);
+      updateCash(undefined, exp, undefined, undefined);
     });
 
     const unsubPurchases = onSnapshot(getUserCollection('purchases'), (snapshot) => {
-      let purchasePaid = 0;
-      snapshot.forEach(doc => purchasePaid += (doc.data().amountPaid || 0));
-      setTotalPurchasesPaid(purchasePaid);
-      updateCash(undefined, undefined, undefined, purchasePaid, undefined);
+      let purchasesSum = 0;
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const amt = d.paymentType === 'Credit' ? (d.amountPaid || 0) : (d.total || d.amountPaid || 0);
+        purchasesSum += amt;
+      });
+      setTotalPurchases(purchasesSum);
+      updateCash(undefined, undefined, purchasesSum, undefined);
     });
 
-    let curSales = 0, curExp = 0, curPay = 0, curPurchasePaid = 0, curInv = 0;
-    function updateCash(s?: number, e?: number, p?: number, pp?: number, inv?: number) {
+    let curSales = 0, curExp = 0, curPurchases = 0, curInv = 0;
+    function updateCash(s?: number, e?: number, p?: number, inv?: number) {
       if (s !== undefined) curSales = s;
       if (e !== undefined) curExp = e;
-      if (p !== undefined) curPay = p;
-      if (pp !== undefined) curPurchasePaid = pp;
+      if (p !== undefined) curPurchases = p;
       if (inv !== undefined) curInv = inv;
-      // Formula: Initial Investment + Total Sales - Expenses - Fuel Purchases Paid - Vendor Payments Paid
-      setCashInHand(curInv + curSales - curExp - curPurchasePaid - curPay);
+      // Formula:
+      // Base: Total Sales - Expenses = Cash in Hand
+      // If Investment > 0: (Initial Investment - Purchases) + (Total Sales - Expenses)
+      if (curInv > 0) {
+        setCashInHand(curInv + curSales - curPurchases - curExp);
+      } else {
+        setCashInHand(curSales - curExp);
+      }
       setLoading(false);
     }
 
@@ -118,7 +119,6 @@ export default function DashboardPage() {
       unsubProfile();
       unsubReadings();
       unsubExpenses();
-      unsubPayments();
       unsubPurchases();
     };
   }, []);
@@ -352,71 +352,99 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Real-time Accounting Breakdown */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2.5 text-xs">
-                  <div className="flex items-center justify-between font-semibold text-slate-500 pb-1 border-b border-slate-200">
-                    <span>Cash Flow Summary</span>
-                    <span>Amount (Rs.)</span>
-                  </div>
+                {(() => {
+                  const inputInv = parseFloat(investmentInput) || 0;
+                  const hasInv = inputInv > 0;
+                  const modalCalculatedCash = hasInv
+                    ? inputInv + totalSales - totalPurchases - totalExpenses
+                    : totalSales - totalExpenses;
 
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      Starting Investment:
-                    </span>
-                    <span className="font-semibold text-emerald-600">
-                      + Rs. {formatAmount(parseFloat(investmentInput) || 0)}
-                    </span>
-                  </div>
+                  return (
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-2.5 text-xs">
+                      <div className="flex items-center justify-between font-semibold text-slate-500 pb-1 border-b border-slate-200">
+                        <span>Cash Flow Summary</span>
+                        <span>Amount (Rs.)</span>
+                      </div>
 
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      Total Fuel Sales:
-                    </span>
-                    <span className="font-semibold text-emerald-600">
-                      + Rs. {formatAmount(totalSales)}
-                    </span>
-                  </div>
+                      {hasInv ? (
+                        <>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              Starting Investment:
+                            </span>
+                            <span className="font-semibold text-emerald-600">
+                              + Rs. {formatAmount(inputInv)}
+                            </span>
+                          </div>
 
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      Fuel Purchases Paid (Cash):
-                    </span>
-                    <span className="font-semibold text-rose-600">
-                      - Rs. {formatAmount(totalPurchasesPaid)}
-                    </span>
-                  </div>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              Total Fuel Sales:
+                            </span>
+                            <span className="font-semibold text-emerald-600">
+                              + Rs. {formatAmount(totalSales)}
+                            </span>
+                          </div>
 
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      Vendor Credit Payments:
-                    </span>
-                    <span className="font-semibold text-rose-600">
-                      - Rs. {formatAmount(totalVendorPayments)}
-                    </span>
-                  </div>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                              Fuel Purchases:
+                            </span>
+                            <span className="font-semibold text-rose-600">
+                              - Rs. {formatAmount(totalPurchases)}
+                            </span>
+                          </div>
 
-                  <div className="flex items-center justify-between text-slate-700">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      Station Expenses:
-                    </span>
-                    <span className="font-semibold text-rose-600">
-                      - Rs. {formatAmount(totalExpenses)}
-                    </span>
-                  </div>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                              Station Expenses:
+                            </span>
+                            <span className="font-semibold text-rose-600">
+                              - Rs. {formatAmount(totalExpenses)}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              Total Fuel Sales:
+                            </span>
+                            <span className="font-semibold text-emerald-600">
+                              + Rs. {formatAmount(totalSales)}
+                            </span>
+                          </div>
 
-                  <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-bold text-sm text-slate-800">
-                    <span>Calculated Cash in Hand:</span>
-                    <span className="text-success text-base">
-                      Rs. {formatAmount(
-                        (parseFloat(investmentInput) || 0) + totalSales - totalExpenses - totalPurchasesPaid - totalVendorPayments
+                          <div className="flex items-center justify-between text-slate-700">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                              Station Expenses:
+                            </span>
+                            <span className="font-semibold text-rose-600">
+                              - Rs. {formatAmount(totalExpenses)}
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-slate-200 leading-relaxed">
+                            No starting investment entered. Cash in Hand is calculated as <strong>Total Sales - Expenses</strong>. Once you add starting capital above, fuel purchases will be deducted from your investment.
+                          </div>
+                        </>
                       )}
-                    </span>
-                  </div>
-                </div>
+
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-bold text-sm text-slate-800">
+                        <span>Calculated Cash in Hand:</span>
+                        <span className={`text-base ${modalCalculatedCash >= 0 ? 'text-success' : 'text-danger'}`}>
+                          Rs. {formatAmount(modalCalculatedCash)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Footer actions */}
                 <div className="flex items-center justify-end gap-3 pt-2">
