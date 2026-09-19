@@ -8,7 +8,8 @@ const defaultProfile: StationProfile = {
   stationName: 'ZAMZAM',
   ownerName: '',
   phone: '',
-  address: ''
+  address: '',
+  initialInvestment: 0
 };
 
 export function useStationProfile() {

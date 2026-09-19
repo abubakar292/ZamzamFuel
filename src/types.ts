@@ -87,6 +87,7 @@ export interface StationProfile {
   ownerName: string;
   phone: string;
   address: string;
+  initialInvestment?: number;
 }
 
 export interface FuelPrices {

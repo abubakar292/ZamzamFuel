@@ -32,10 +32,12 @@ export const stockValue = (stock: number, avgPrice: number): number => stock * a
 
 // 7. Cash in hand
 export const cashInHand = (
+  initialInvestment: number,
   totalFuelSales: number,
   totalExpenses: number,
+  totalPurchasesPaid: number,
   totalVendorPayments: number
-): number => totalFuelSales - totalExpenses - totalVendorPayments;
+): number => (Number(initialInvestment) || 0) + totalFuelSales - totalExpenses - totalPurchasesPaid - totalVendorPayments;
 
 // 8. Vendor qarz
 export const vendorQarz = (purchases: number, paid: number): number =>

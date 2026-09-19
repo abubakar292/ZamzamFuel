@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, User, Phone, MapPin, Save } from 'lucide-react';
+import { Building2, User, Phone, MapPin, Save, Wallet } from 'lucide-react';
 import { useStationProfile } from '../hooks/useStationProfile';
 import { useToast } from '../components/Toast';
 
@@ -17,7 +17,10 @@ export default function SettingsPage() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await updateProfile(formData);
+      await updateProfile({
+        ...formData,
+        initialInvestment: Number(formData.initialInvestment) || 0
+      });
       showToast('Settings saved successfully', 'success');
     } catch (error) {
       console.error(error);
@@ -29,7 +32,10 @@ export default function SettingsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'initialInvestment' ? (value === '' ? '' : Number(value)) : value
+    }));
   };
 
   if (loading) {
@@ -109,6 +115,29 @@ export default function SettingsPage() {
                     placeholder="e.g. +1 234 567 890"
                   />
                 </div>
+              </div>
+
+              {/* Starting Investment / Capital */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2 transition-colors">
+                  Starting Investment / Capital (Rs.)
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Wallet className="h-5 w-5 text-slate-400 group-focus-within:text-primary transition-colors" />
+                  </div>
+                  <input
+                    type="number"
+                    name="initialInvestment"
+                    min="0"
+                    step="any"
+                    value={formData.initialInvestment !== undefined ? formData.initialInvestment : ''}
+                    onChange={handleChange}
+                    className="pl-11 w-full rounded-xl border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all py-3 shadow-sm"
+                    placeholder="e.g. 2000000"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Starting cash introduced to open the station. Used to calculate Cash in Hand.</p>
               </div>
 
               {/* Address */}
