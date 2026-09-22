@@ -1,16 +1,18 @@
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc, collection, onSnapshot, query, where, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, onSnapshot, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { Vendor, Purchase, VendorPayment } from '../types';
 import { useToast } from '../components/Toast';
 import { formatAmount } from '../utils/calculations';
-import { format } from 'date-fns';
-import { ArrowLeft, CreditCard, ArrowDownRight, ArrowUpRight, Plus, X } from 'lucide-react';
+import { parseDateInput, getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
+import { recalculateVendor } from '../utils/recalculate';
+import { ArrowLeft, CreditCard, ArrowDownRight, ArrowUpRight, Plus, X, Trash2 } from 'lucide-react';
 
 type LedgerItem = {
   id: string;
+  originalId?: string;
   type: 'purchase' | 'payment';
   date: any;
   amount: number;
@@ -31,7 +33,7 @@ export default function VendorDetailPage() {
   // Pay Modal
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [payAmount, setPayAmount] = useState('');
-  const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [payDate, setPayDate] = useState(() => getTodayDateString());
   const [payNotes, setPayNotes] = useState('');
   const [paying, setPaying] = useState(false);
 
@@ -94,6 +96,7 @@ export default function VendorDetailPage() {
     payments.forEach(p => {
       items.push({
         id: `pay_${p.id}`,
+        originalId: p.id,
         type: 'payment',
         date: p.paymentDate,
         amount: p.amount,
@@ -131,24 +134,21 @@ export default function VendorDetailPage() {
 
     setPaying(true);
     try {
-      const paymentDate = new Date(payDate);
-      paymentDate.setHours(new Date().getHours(), new Date().getMinutes());
+      const paymentDate = parseDateInput(payDate);
+      const now = new Date();
+      paymentDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
 
       await addDoc(getUserCollection('vendorPayments'), {
         vendorId: vendor.id,
         vendorName: vendor.name,
         amount,
-        paymentDate: paymentDate, // Using native Date, firebase will convert
+        paymentDate: paymentDate,
         notes: payNotes,
         createdAt: serverTimestamp()
       });
 
-      // Update vendor totals
-      const vendorRef = getUserDoc('vendors', vendor.id!);
-      await updateDoc(vendorRef, {
-        totalPaid: vendor.totalPaid + amount,
-        vendorQarz: Math.max(0, vendor.vendorQarz - amount)
-      });
+      // Recalculate vendor balances accurately
+      await recalculateVendor(vendor.id!);
 
       showToast('Payment recorded successfully', 'success');
       setIsPayOpen(false);
@@ -157,6 +157,18 @@ export default function VendorDetailPage() {
       showToast('Failed to record payment', 'error');
     } finally {
       setPaying(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!vendor?.id || !paymentId) return;
+    try {
+      await deleteDoc(getUserDoc('vendorPayments', paymentId));
+      await recalculateVendor(vendor.id);
+      showToast('Payment deleted & vendor balance recalculated', 'success');
+    } catch (err) {
+      console.error('Failed to delete payment:', err);
+      showToast('Failed to delete payment', 'error');
     }
   };
 
@@ -229,15 +241,26 @@ export default function VendorDetailPage() {
                   <div>
                     <p className="font-medium text-slate-800 text-sm sm:text-base">{item.label}</p>
                     <p className="text-xs text-slate-400">
-                      {item.date?.toMillis ? format(item.date.toDate(), 'dd MMM yyyy, hh:mm a') : 'Unknown date'}
+                      {formatDisplayDate(item.date, 'dd MMM yyyy, hh:mm a')}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`font-bold ${item.type === 'purchase' ? 'text-danger' : 'text-success'}`}>
-                    {item.type === 'purchase' ? '+' : '-'}Rs. {formatAmount(item.amount)}
-                  </p>
-                  <p className="text-xs text-slate-500 font-medium">Bal: Rs. {formatAmount(item.runningBalance || 0)}</p>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className={`font-bold ${item.type === 'purchase' ? 'text-danger' : 'text-success'}`}>
+                      {item.type === 'purchase' ? '+' : '-'}Rs. {formatAmount(item.amount)}
+                    </p>
+                    <p className="text-xs text-slate-500 font-medium">Bal: Rs. {formatAmount(item.runningBalance || 0)}</p>
+                  </div>
+                  {item.type === 'payment' && item.originalId && (
+                    <button
+                      onClick={() => item.originalId && handleDeletePayment(item.originalId)}
+                      className="p-1.5 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                      title="Delete payment entry"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))

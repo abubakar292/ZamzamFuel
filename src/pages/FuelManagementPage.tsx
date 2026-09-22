@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, serverTimestamp, writeBatch, collection, query, orderBy, limit, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, writeBatch, collection, query, orderBy, limit, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
 import { recalculateDatabase } from '../utils/recalculate';
-import { Edit3, X } from 'lucide-react';
+import { Edit3, X, Trash2, AlertTriangle, Droplets, Fuel, Save } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { FuelPrices, FuelReading } from '../types';
 import { useToast } from '../components/Toast';
 import { dailySold, dailyAmount, profitPerLiter, totalProfit, formatAmount, formatLiters } from '../utils/calculations';
-import { Droplets, Fuel, Save } from 'lucide-react';
-import { format } from 'date-fns';
+import { parseDateInput, getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
 
 export default function FuelManagementPage() {
   const [settings, setSettings] = useState<FuelPrices | null>(null);
@@ -18,12 +17,13 @@ export default function FuelManagementPage() {
   // Recent Readings & Editing
   const [recentReadings, setRecentReadings] = useState<FuelReading[]>([]);
   const [editingReading, setEditingReading] = useState<FuelReading | null>(null);
+  const [readingToDelete, setReadingToDelete] = useState<FuelReading | null>(null);
   const [editPClosing, setEditPClosing] = useState('');
   const [editDClosing, setEditDClosing] = useState('');
   const [editSaving, setEditSaving] = useState(false);
+  const [deletingReading, setDeletingReading] = useState(false);
 
-
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => getTodayDateString());
   
   // Petrol
   const [pClosing, setPClosing] = useState('');
@@ -135,6 +135,22 @@ export default function FuelManagementPage() {
   };
 
 
+  const handleDeleteReading = async () => {
+    if (!readingToDelete?.id) return;
+    setDeletingReading(true);
+    try {
+      await deleteDoc(getUserDoc('fuelReadings', readingToDelete.id));
+      await recalculateDatabase();
+      showToast('Reading deleted and database recalculated successfully', 'success');
+      setReadingToDelete(null);
+    } catch (err) {
+      console.error('Failed to delete reading:', err);
+      showToast('Failed to delete reading', 'error');
+    } finally {
+      setDeletingReading(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!settings) return;
     if (pClosingNum <= 0 || dClosingNum <= 0) {
@@ -148,8 +164,7 @@ export default function FuelManagementPage() {
 
     setSaving(true);
     try {
-      const readingDate = new Date(date);
-      readingDate.setHours(12, 0, 0);
+      const readingDate = parseDateInput(date);
 
       const readingId = `reading_${date}`; // simple deterministic ID per day, or use auto ID.
       // Actually requirement says "Saves ONE document to /fuelReadings"
@@ -368,26 +383,36 @@ export default function FuelManagementPage() {
                   <th className="pb-3 font-semibold">Date</th>
                   <th className="pb-3 font-semibold">Petrol Closing</th>
                   <th className="pb-3 font-semibold">Diesel Closing</th>
-                  <th className="pb-3 font-semibold text-right">Action</th>
+                  <th className="pb-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {recentReadings.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3 font-medium text-slate-700">{format(r.date.toMillis(), 'dd MMM yyyy')}</td>
+                    <td className="py-3 font-medium text-slate-700">{formatDisplayDate(r.date)}</td>
                     <td className="py-3 text-slate-600">{r.petrolClosingReading} L</td>
                     <td className="py-3 text-slate-600">{r.dieselClosingReading} L</td>
                     <td className="py-3 text-right">
-                      <button 
-                        onClick={() => {
-                          setEditingReading(r);
-                          setEditPClosing(r.petrolClosingReading.toString());
-                          setEditDClosing(r.dieselClosingReading.toString());
-                        }}
-                        className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button 
+                          onClick={() => {
+                            setEditingReading(r);
+                            setEditPClosing(r.petrolClosingReading.toString());
+                            setEditDClosing(r.dieselClosingReading.toString());
+                          }}
+                          className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          title="Edit reading"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => setReadingToDelete(r)}
+                          className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                          title="Delete reading"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -396,6 +421,73 @@ export default function FuelManagementPage() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {readingToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" 
+              onClick={() => !deletingReading && setReadingToDelete(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50/50">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-danger" /> Delete Reading Entry
+                </h3>
+                <button onClick={() => !deletingReading && setReadingToDelete(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Are you sure you want to delete the fuel reading from <strong className="text-slate-900">{formatDisplayDate(readingToDelete.date)}</strong>?
+                </p>
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5 text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Petrol Sold / Closing:</span>
+                    <span className="font-bold">{readingToDelete.petrolSold || 0} L / {readingToDelete.petrolClosingReading} L</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Diesel Sold / Closing:</span>
+                    <span className="font-bold">{readingToDelete.dieselSold || 0} L / {readingToDelete.dieselClosingReading} L</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Sale Subtotal:</span>
+                    <span className="font-bold text-emerald-600">Rs. {formatAmount(readingToDelete.subtotal || 0)}</span>
+                  </div>
+                </div>
+                <div className="bg-amber-50 text-amber-800 p-3 rounded-xl text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>Deleting this entry will automatically revert fuel stock, recalculate current pump meter readings, and update sales totals in Cash in Hand.</span>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+                <button 
+                  onClick={() => !deletingReading && setReadingToDelete(null)}
+                  disabled={deletingReading}
+                  className="flex-1 py-3 px-4 bg-white text-slate-700 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDeleteReading} disabled={deletingReading}
+                  className="flex-1 py-3 px-4 bg-danger text-white font-bold rounded-xl hover:bg-danger-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deletingReading ? 'Deleting & Recalculating...' : 'Yes, Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Edit Modal */}
       <AnimatePresence>

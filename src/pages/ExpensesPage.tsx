@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { collection, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
@@ -6,7 +6,7 @@ import { Expense } from '../types';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { formatAmount } from '../utils/calculations';
-import { format } from 'date-fns';
+import { parseDateInput, getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
 import { Search, Plus, Trash2, Receipt, Filter } from 'lucide-react';
 
 const CATEGORIES = ['Salary', 'Utilities', 'Maintenance', 'Fuel', 'Miscellaneous', 'Other'];
@@ -24,7 +24,7 @@ export default function ExpensesPage() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [paidTo, setPaidTo] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => getTodayDateString());
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -47,8 +47,7 @@ export default function ExpensesPage() {
     
     setLoading(true);
     try {
-      const expDate = new Date(date);
-      expDate.setHours(12, 0, 0); // avoid timezone issues
+      const expDate = parseDateInput(date);
 
       await addDoc(getUserCollection('expenses'), {
         title,
@@ -74,7 +73,7 @@ export default function ExpensesPage() {
     if (!expenseToDelete?.id) return;
     try {
       await deleteDoc(getUserDoc('expenses', expenseToDelete.id));
-      showToast('Expense deleted', 'success');
+      showToast('Expense deleted and Cash in Hand updated', 'success');
     } catch (error) {
       showToast('Failed to delete', 'error');
     }
@@ -175,7 +174,7 @@ export default function ExpensesPage() {
                             {exp.category}
                           </span>
                           <span className="text-xs text-slate-400">
-                            {exp.date?.toMillis ? format(exp.date.toDate(), 'dd MMM yyyy') : ''}
+                            {formatDisplayDate(exp.date)}
                           </span>
                         </div>
                         <h4 className="font-bold text-slate-800 text-base truncate">{exp.title}</h4>
@@ -186,7 +185,8 @@ export default function ExpensesPage() {
                         <p className="font-bold text-lg text-slate-800">Rs. {formatAmount(exp.amount)}</p>
                         <button 
                           onClick={() => setExpenseToDelete(exp)}
-                          className="p-2 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100"
+                          className="p-2 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                          title="Delete expense"
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, onSnapshot, query, orderBy, doc, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, runTransaction, serverTimestamp, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { Purchase, Vendor, PurchaseItem, FuelPrices } from '../types';
 import { useToast } from '../components/Toast';
 import { formatAmount, weightedAvgPrice } from '../utils/calculations';
-import { Plus, Trash2, Save, History, Search } from 'lucide-react';
-import { format } from 'date-fns';
+import { recalculateDatabase, recalculateVendor } from '../utils/recalculate';
+import { parseDateInput, getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
+import { Plus, Trash2, Save, History, Search, AlertTriangle, X } from 'lucide-react';
 
 export default function PurchasesPage() {
   const [activeTab, setActiveTab] = useState<'new' | 'history'>('new');
@@ -15,10 +16,14 @@ export default function PurchasesPage() {
   const [fuelPrices, setFuelPrices] = useState<FuelPrices | null>(null);
   const [search, setSearch] = useState('');
   
+  // Delete purchase state
+  const [purchaseToDelete, setPurchaseToDelete] = useState<Purchase | null>(null);
+  const [deletingPurchase, setDeletingPurchase] = useState(false);
+  
   // New Purchase Form
   const [vendorId, setVendorId] = useState('');
   const [paymentType, setPaymentType] = useState<'Cash' | 'Credit'>('Credit');
-  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [purchaseDate, setPurchaseDate] = useState(() => getTodayDateString());
   const [items, setItems] = useState<PurchaseItem[]>([{ fuelType: 'petrol', quantity: 0, unitCost: 0, subtotal: 0 }]);
   const [amountPaid, setAmountPaid] = useState('');
   const [saving, setSaving] = useState(false);
@@ -109,8 +114,7 @@ export default function PurchasesPage() {
       });
 
       // 2. Prepare date
-      const pDate = new Date(purchaseDate);
-      pDate.setHours(12, 0, 0);
+      const pDate = parseDateInput(purchaseDate);
 
       const batch = writeBatch(db);
 
@@ -179,6 +183,33 @@ export default function PurchasesPage() {
       showToast('Failed to record purchase', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeletePurchase = async () => {
+    if (!purchaseToDelete?.id) return;
+    setDeletingPurchase(true);
+    try {
+      const vId = purchaseToDelete.vendorId;
+
+      // 1. Delete purchase document
+      await deleteDoc(getUserDoc('purchases', purchaseToDelete.id));
+
+      // 2. Re-calculate entire fuel inventory & weighted avg purchase prices
+      await recalculateDatabase();
+
+      // 3. Re-calculate the vendor's totalPurchases, totalPaid, and vendorQarz
+      if (vId) {
+        await recalculateVendor(vId);
+      }
+
+      showToast(`Purchase INV-${purchaseToDelete.invoiceNumber.toString().padStart(3, '0')} deleted & calculations updated`, 'success');
+      setPurchaseToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete purchase:', error);
+      showToast('Failed to delete purchase', 'error');
+    } finally {
+      setDeletingPurchase(false);
     }
   };
 
@@ -365,7 +396,7 @@ export default function PurchasesPage() {
                             <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded-md tracking-wider">
                               INV-{p.invoiceNumber.toString().padStart(3, '0')}
                             </span>
-                            <span className="text-xs text-slate-400">{p.purchaseDate?.toMillis ? format(p.purchaseDate.toDate(), 'dd MMM yyyy') : ''}</span>
+                            <span className="text-xs text-slate-400">{formatDisplayDate(p.purchaseDate)}</span>
                           </div>
                           <h4 className="font-bold text-slate-800 text-lg mb-3">{p.vendorName}</h4>
                           
@@ -394,6 +425,14 @@ export default function PurchasesPage() {
                               ✓ Fully Paid
                             </span>
                           )}
+                          <button
+                            onClick={() => setPurchaseToDelete(p)}
+                            className="mt-2.5 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-danger hover:bg-danger/10 border border-danger/20 transition-colors"
+                            title="Delete this purchase invoice"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -402,6 +441,81 @@ export default function PurchasesPage() {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Purchase Confirmation Modal */}
+      <AnimatePresence>
+        {purchaseToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" 
+              onClick={() => !deletingPurchase && setPurchaseToDelete(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-rose-50/50">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-danger" /> Delete Purchase
+                </h3>
+                <button onClick={() => !deletingPurchase && setPurchaseToDelete(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Are you sure you want to delete purchase invoice <strong className="text-slate-900">INV-{purchaseToDelete.invoiceNumber.toString().padStart(3, '0')}</strong> from <strong className="text-slate-900">{purchaseToDelete.vendorName}</strong>?
+                </p>
+
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2 text-slate-700">
+                  <div className="flex justify-between">
+                    <span>Date:</span>
+                    <span className="font-semibold">{formatDisplayDate(purchaseToDelete.purchaseDate)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Total Bill:</span>
+                    <span className="font-bold text-slate-900">Rs. {formatAmount(purchaseToDelete.total)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Amount Paid:</span>
+                    <span className="font-semibold text-emerald-600">Rs. {formatAmount(purchaseToDelete.amountPaid)}</span>
+                  </div>
+                  {purchaseToDelete.remainingBalance > 0 && (
+                    <div className="flex justify-between">
+                      <span>Remaining Credit:</span>
+                      <span className="font-semibold text-danger">Rs. {formatAmount(purchaseToDelete.remainingBalance)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-amber-50 text-amber-800 p-3 rounded-xl text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>Deleting this invoice will automatically revert purchased fuel stock, recompute weighted average purchase prices, adjust vendor credit balances, and recalculate Cash in Hand.</span>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+                <button 
+                  onClick={() => !deletingPurchase && setPurchaseToDelete(null)}
+                  disabled={deletingPurchase}
+                  className="flex-1 py-3 px-4 bg-white text-slate-700 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleDeletePurchase} disabled={deletingPurchase}
+                  className="flex-1 py-3 px-4 bg-danger text-white font-bold rounded-xl hover:bg-danger-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deletingPurchase ? 'Deleting & Recalculating...' : 'Yes, Delete'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

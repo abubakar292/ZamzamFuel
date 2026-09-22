@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, query, where } from 'firebase/firestore';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { weightedAvgPrice } from './calculations';
 
@@ -59,5 +59,39 @@ export async function recalculateDatabase() {
     console.log('Database auto-fixed successfully!');
   } catch (err) {
     console.error('Failed to auto-fix database:', err);
+  }
+}
+
+export async function recalculateVendor(vendorId: string) {
+  if (!vendorId) return;
+  try {
+    const qPur = query(getUserCollection('purchases'), where('vendorId', '==', vendorId));
+    const purSnap = await getDocs(qPur);
+    let totalPurchases = 0;
+    let totalPaidFromPurchases = 0;
+    purSnap.forEach(d => {
+      const data = d.data();
+      totalPurchases += (Number(data.total) || 0);
+      totalPaidFromPurchases += (Number(data.amountPaid) || 0);
+    });
+
+    const qPay = query(getUserCollection('vendorPayments'), where('vendorId', '==', vendorId));
+    const paySnap = await getDocs(qPay);
+    let manualPayments = 0;
+    paySnap.forEach(d => {
+      const data = d.data();
+      manualPayments += (Number(data.amount) || 0);
+    });
+
+    const totalPaid = totalPaidFromPurchases + manualPayments;
+    const vendorQarz = Math.max(0, totalPurchases - totalPaid);
+
+    await setDoc(getUserDoc('vendors', vendorId), {
+      totalPurchases,
+      totalPaid,
+      vendorQarz
+    }, { merge: true });
+  } catch (err) {
+    console.error('Failed to recalculate vendor balances:', err);
   }
 }

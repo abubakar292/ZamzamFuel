@@ -5,7 +5,7 @@ import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { FuelReading, Expense } from '../types';
 import { useToast } from '../components/Toast';
 import { formatAmount } from '../utils/calculations';
-import { format } from 'date-fns';
+import { parseDateInput, formatDisplayDate } from '../utils/dateUtils';
 import { FileText, Download, Filter } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -43,9 +43,9 @@ export default function ReportPage() {
 
     setLoading(true);
     try {
-      const start = new Date(fromDate);
+      const start = parseDateInput(fromDate);
       start.setHours(0, 0, 0, 0);
-      const end = new Date(toDate);
+      const end = parseDateInput(toDate);
       end.setHours(23, 59, 59, 999);
 
       // Fetch readings
@@ -75,7 +75,7 @@ export default function ReportPage() {
       readings.sort((a, b) => a.date.toMillis() - b.date.toMillis());
 
       readings.forEach(r => {
-        const dStr = format(r.date.toDate(), 'dd MMM yyyy');
+        const dStr = formatDisplayDate(r.date);
         
         if (reportType === 'All' || reportType === 'Petrol') {
           if (r.petrolSold > 0) {
@@ -167,7 +167,7 @@ export default function ReportPage() {
     // Date range
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(10);
-    doc.text(`Period: ${format(new Date(fromDate), 'dd MMM yyyy')} - ${format(new Date(toDate), 'dd MMM yyyy')}`, 14, 38);
+    doc.text(`Period: ${formatDisplayDate(fromDate)} - ${formatDisplayDate(toDate)}`, 14, 38);
     doc.text(`Report Type: ${reportType}`, 14, 44);
 
     // Table
