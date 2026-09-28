@@ -99,6 +99,8 @@ export interface FuelPrices {
   dieselStock: number;
   petrolStockValue: number;
   dieselStockValue: number;
+  initialPetrolReading?: number;
+  initialDieselReading?: number;
   lastPetrolSalePrice?: number;
   lastDieselSalePrice?: number;
 }

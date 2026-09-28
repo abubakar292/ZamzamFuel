@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, serverTimestamp, writeBatch, collection, query, orderBy, limit, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, writeBatch, collection, query, orderBy, limit, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { recalculateDatabase } from '../utils/recalculate';
-import { Edit3, X, Trash2, AlertTriangle, Droplets, Fuel, Save } from 'lucide-react';
+import { Edit3, X, Trash2, AlertTriangle, Droplets, Fuel, Save, Gauge } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { FuelPrices, FuelReading } from '../types';
@@ -22,6 +22,11 @@ export default function FuelManagementPage() {
   const [editDClosing, setEditDClosing] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [deletingReading, setDeletingReading] = useState(false);
+
+  // Meter Calibration
+  const [calibrating, setCalibrating] = useState<'petrol' | 'diesel' | null>(null);
+  const [calibReading, setCalibReading] = useState('');
+  const [savingCalib, setSavingCalib] = useState(false);
 
   const [date, setDate] = useState(() => getTodayDateString());
   
@@ -65,17 +70,21 @@ export default function FuelManagementPage() {
   }, []);
 
   
+  // Real-time listener for Recent Readings: updates instantly upon add, delete, or edit without browser refresh
   useEffect(() => {
-    const fetchRecent = async () => {
-      const q = query(getUserCollection('fuelReadings'), orderBy('date', 'desc'), limit(5));
-      const snap = await getDocs(q);
-      const readings = snap.docs.map(d => ({ ...d.data(), id: d.id } as FuelReading));
+    const q = query(getUserCollection('fuelReadings'), orderBy('date', 'desc'), limit(15));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const readings = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as FuelReading));
+      // Sort in true chronological order descending (newest first)
+      readings.sort((a, b) => {
+        const timeA = (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0) || (a.date?.toMillis ? a.date.toMillis() : 0);
+        const timeB = (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0) || (b.date?.toMillis ? b.date.toMillis() : 0);
+        return timeB - timeA;
+      });
       setRecentReadings(readings);
-    };
-    fetchRecent();
-    
-    // Also re-fetch when saving happens, we can hook it into the onSnapshot or do it manually
-  }, [saving, editSaving]);
+    });
+    return () => unsub();
+  }, []);
 
 
   const pClosingNum = parseFloat(pClosing) || 0;
@@ -137,17 +146,53 @@ export default function FuelManagementPage() {
 
   const handleDeleteReading = async () => {
     if (!readingToDelete?.id) return;
+    const toDeleteId = readingToDelete.id;
     setDeletingReading(true);
+
+    // Directly and instantly remove from local recent entries list (no wait, no browser refresh needed)
+    setRecentReadings(prev => prev.filter(r => r.id !== toDeleteId));
+
     try {
-      await deleteDoc(getUserDoc('fuelReadings', readingToDelete.id));
+      await deleteDoc(getUserDoc('fuelReadings', toDeleteId));
       await recalculateDatabase();
-      showToast('Reading deleted and database recalculated successfully', 'success');
+      showToast('Reading entry deleted and calculations updated in real-time', 'success');
       setReadingToDelete(null);
     } catch (err) {
       console.error('Failed to delete reading:', err);
       showToast('Failed to delete reading', 'error');
     } finally {
       setDeletingReading(false);
+    }
+  };
+
+  const handleSaveCalibration = async () => {
+    if (!calibrating) return;
+    const val = parseFloat(calibReading);
+    if (isNaN(val) || val < 0) {
+      showToast('Please enter a valid meter reading', 'warning');
+      return;
+    }
+    setSavingCalib(true);
+    try {
+      if (calibrating === 'petrol') {
+        await setDoc(getUserDoc('appSettings', 'fuelPrices'), {
+          petrolCurrentReading: val,
+          initialPetrolReading: val
+        }, { merge: true });
+      } else {
+        await setDoc(getUserDoc('appSettings', 'fuelPrices'), {
+          dieselCurrentReading: val,
+          initialDieselReading: val
+        }, { merge: true });
+      }
+      await recalculateDatabase();
+      showToast(`${calibrating === 'petrol' ? 'Petrol' : 'Diesel'} meter calibrated to ${val} L`, 'success');
+      setCalibrating(null);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to calibrate meter reading', 'error');
+    } finally {
+      setSavingCalib(false);
     }
   };
 
@@ -165,9 +210,6 @@ export default function FuelManagementPage() {
     setSaving(true);
     try {
       const readingDate = parseDateInput(date);
-
-      const readingId = `reading_${date}`; // simple deterministic ID per day, or use auto ID.
-      // Actually requirement says "Saves ONE document to /fuelReadings"
       const docRef = doc(getUserCollection('fuelReadings')); 
 
       const newPStock = Math.max(0, settings.petrolStock - pSold);
@@ -202,6 +244,8 @@ export default function FuelManagementPage() {
         dieselStockValue: newDStock * settings.dieselAvgPurchasePrice,
         lastPetrolSalePrice: pSalePriceNum,
         lastDieselSalePrice: dSalePriceNum,
+        ...(settings.initialPetrolReading === undefined ? { initialPetrolReading: pLastReading } : {}),
+        ...(settings.initialDieselReading === undefined ? { initialDieselReading: dLastReading } : {})
       }, { merge: true });
 
       await batch.commit();
@@ -249,7 +293,20 @@ export default function FuelManagementPage() {
             <div className="flex justify-between items-end pb-4 border-b border-slate-100">
               <div>
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Last Reading</p>
-                <p className="text-lg font-bold text-slate-800">{formatLiters(pLastReading)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-bold text-slate-800">{formatLiters(pLastReading)}</p>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setCalibrating('petrol');
+                      setCalibReading(pLastReading > 0 ? pLastReading.toString() : '');
+                    }}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
+                    title="Calibrate / Set starting pump meter reading"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Avg Purchase</p>
@@ -315,7 +372,20 @@ export default function FuelManagementPage() {
             <div className="flex justify-between items-end pb-4 border-b border-slate-100">
               <div>
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Last Reading</p>
-                <p className="text-lg font-bold text-slate-800">{formatLiters(dLastReading)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-bold text-slate-800">{formatLiters(dLastReading)}</p>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setCalibrating('diesel');
+                      setCalibReading(dLastReading > 0 ? dLastReading.toString() : '');
+                    }}
+                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-diesel transition-colors"
+                    title="Calibrate / Set starting pump meter reading"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Avg Purchase</p>
@@ -546,6 +616,64 @@ export default function FuelManagementPage() {
                   className="flex-1 py-3 px-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-light transition-colors disabled:opacity-50"
                 >
                   {editSaving ? 'Saving...' : 'Update Reading'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Meter Calibration Modal */}
+      <AnimatePresence>
+        {calibrating && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" 
+              onClick={() => !savingCalib && setCalibrating(null)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <Gauge className="w-5 h-5 text-primary" /> Calibrate {calibrating === 'petrol' ? 'Petrol' : 'Diesel'} Meter
+                </h3>
+                <button onClick={() => !savingCalib && setCalibrating(null)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-600">
+                  Set or adjust the current physical pump meter reading for <strong className="capitalize text-slate-800">{calibrating}</strong>. Future closing entries will calculate sales from this reading.
+                </p>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Starting Meter Reading (Liters)</label>
+                  <input 
+                    type="number" step="0.01" 
+                    value={calibReading} 
+                    onChange={e => setCalibReading(e.target.value)}
+                    placeholder="0.00"
+                    autoFocus
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary/20 text-lg font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+                <button 
+                  onClick={() => !savingCalib && setCalibrating(null)}
+                  className="flex-1 py-3 px-4 bg-white text-slate-700 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveCalibration} disabled={savingCalib}
+                  className="flex-1 py-3 px-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-light transition-colors disabled:opacity-50"
+                >
+                  {savingCalib ? 'Calibrating...' : 'Save Calibration'}
                 </button>
               </div>
             </motion.div>
