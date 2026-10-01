@@ -68,3 +68,32 @@ export function formatDisplayDate(dateVal: any, formatStr: string = 'dd MMM yyyy
     return '-';
   }
 }
+
+/**
+ * Formats any date-like value into "YYYY-MM-DD" for HTML date input elements.
+ */
+export function formatDateForInput(dateVal: any): string {
+  if (!dateVal) return getTodayDateString();
+  try {
+    let d: Date;
+    if (typeof dateVal?.toDate === 'function') {
+      d = dateVal.toDate();
+    } else if (dateVal instanceof Date) {
+      d = dateVal;
+    } else if (typeof dateVal === 'number') {
+      d = new Date(dateVal);
+    } else if (typeof dateVal === 'string') {
+      d = parseDateInput(dateVal);
+    } else if (dateVal?.seconds) {
+      d = new Date(dateVal.seconds * 1000);
+    } else {
+      return getTodayDateString();
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch {
+    return getTodayDateString();
+  }
+}

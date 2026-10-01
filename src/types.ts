@@ -57,12 +57,18 @@ export interface FuelReading {
   petrolClosingReading: number;
   petrolSold: number;
   petrolSalePrice: number;
+  petrolAvgPurchasePrice?: number;
+  petrolProfitPerLiter?: number;
+  petrolTotalProfit?: number;
   petrolAmount: number;
   dieselLastReading: number;
   dieselClosingReading: number;
   dieselSold: number;
   dieselSalePrice: number;
-  dieselAmount: number;
+  dieselAvgPurchasePrice?: number;
+  dieselProfitPerLiter?: number;
+  dieselTotalProfit?: number;
+  totalProfit?: number;
   subtotal: number;
   createdAt: Timestamp;
 }
@@ -93,6 +99,8 @@ export interface StationProfile {
 export interface FuelPrices {
   petrolAvgPurchasePrice: number;
   dieselAvgPurchasePrice: number;
+  initialPetrolPurchasePrice?: number;
+  initialDieselPurchasePrice?: number;
   petrolCurrentReading: number;
   dieselCurrentReading: number;
   petrolStock: number;

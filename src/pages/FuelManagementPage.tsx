@@ -20,6 +20,8 @@ export default function FuelManagementPage() {
   const [readingToDelete, setReadingToDelete] = useState<FuelReading | null>(null);
   const [editPClosing, setEditPClosing] = useState('');
   const [editDClosing, setEditDClosing] = useState('');
+  const [editPSalePrice, setEditPSalePrice] = useState('');
+  const [editDSalePrice, setEditDSalePrice] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [deletingReading, setDeletingReading] = useState(false);
 
@@ -90,7 +92,7 @@ export default function FuelManagementPage() {
   const pClosingNum = parseFloat(pClosing) || 0;
   const pSalePriceNum = parseFloat(pSalePrice) || 0;
   const pLastReading = settings?.petrolCurrentReading || 0;
-  const pSold = pClosingNum > 0 ? dailySold(pClosingNum, pLastReading) : 0;
+  const pSold = pClosingNum > pLastReading ? dailySold(pClosingNum, pLastReading) : 0;
   const pAmount = dailyAmount(pSold, pSalePriceNum);
   const pProfitPerL = profitPerLiter(pSalePriceNum, settings?.petrolAvgPurchasePrice || 0);
   const pTotalProfit = totalProfit(pSold, pProfitPerL);
@@ -98,14 +100,21 @@ export default function FuelManagementPage() {
   const dClosingNum = parseFloat(dClosing) || 0;
   const dSalePriceNum = parseFloat(dSalePrice) || 0;
   const dLastReading = settings?.dieselCurrentReading || 0;
-  const dSold = dClosingNum > 0 ? dailySold(dClosingNum, dLastReading) : 0;
+  const dSold = dClosingNum > dLastReading ? dailySold(dClosingNum, dLastReading) : 0;
   const dAmount = dailyAmount(dSold, dSalePriceNum);
   const dProfitPerL = profitPerLiter(dSalePriceNum, settings?.dieselAvgPurchasePrice || 0);
   const dTotalProfit = totalProfit(dSold, dProfitPerL);
 
+  const pStock = Number(settings?.petrolStock) || 0;
+  const dStock = Number(settings?.dieselStock) || 0;
+
+  // Stock Exceeded validation checks
+  const isPetrolStockExceeded = pClosingNum > pLastReading && pSold > pStock;
+  const isDieselStockExceeded = dClosingNum > dLastReading && dSold > dStock;
+  const isStockExceeded = isPetrolStockExceeded || isDieselStockExceeded;
+
   const subtotalAmount = pAmount + dAmount;
 
-  
   const handleEditSave = async () => {
     if (!editingReading || !settings) return;
     setEditSaving(true);
@@ -116,24 +125,57 @@ export default function FuelManagementPage() {
       const newPSold = Math.max(0, newPClosing - editingReading.petrolLastReading);
       const newDSold = Math.max(0, newDClosing - editingReading.dieselLastReading);
       
-      const newPAmount = dailyAmount(newPSold, editingReading.petrolSalePrice);
-      const newDAmount = dailyAmount(newDSold, editingReading.dieselSalePrice);
+      const maxAllowedPSold = pStock + (editingReading.petrolSold || 0);
+      const maxAllowedDSold = dStock + (editingReading.dieselSold || 0);
+
+      if (newPSold > maxAllowedPSold) {
+        showToast(`Cannot update: Petrol reading implies selling ${formatLiters(newPSold)}, but only ${formatLiters(maxAllowedPSold)} available in stock.`, 'error');
+        setEditSaving(false);
+        return;
+      }
+      if (newDSold > maxAllowedDSold) {
+        showToast(`Cannot update: Diesel reading implies selling ${formatLiters(newDSold)}, but only ${formatLiters(maxAllowedDSold)} available in stock.`, 'error');
+        setEditSaving(false);
+        return;
+      }
+
+      const newPSalePrice = parseFloat(editPSalePrice) > 0 ? parseFloat(editPSalePrice) : (editingReading.petrolSalePrice || 0);
+      const newDSalePrice = parseFloat(editDSalePrice) > 0 ? parseFloat(editDSalePrice) : (editingReading.dieselSalePrice || 0);
+
+      const newPAmount = dailyAmount(newPSold, newPSalePrice);
+      const newDAmount = dailyAmount(newDSold, newDSalePrice);
       const newSubtotal = newPAmount + newDAmount;
+
+      const pAvg = Number(editingReading.petrolAvgPurchasePrice) || Number(settings.petrolAvgPurchasePrice) || 0;
+      const dAvg = Number(editingReading.dieselAvgPurchasePrice) || Number(settings.dieselAvgPurchasePrice) || 0;
+      const newPProfitPerL = newPSalePrice - pAvg;
+      const newDProfitPerL = newDSalePrice - dAvg;
+      const newPTotalProfit = newPSold * newPProfitPerL;
+      const newDTotalProfit = newDSold * newDProfitPerL;
 
       await updateDoc(getUserDoc('fuelReadings', editingReading.id!), {
         petrolClosingReading: newPClosing,
         petrolSold: newPSold,
+        petrolSalePrice: newPSalePrice,
         petrolAmount: newPAmount,
+        petrolAvgPurchasePrice: pAvg,
+        petrolProfitPerLiter: newPProfitPerL,
+        petrolTotalProfit: newPTotalProfit,
         dieselClosingReading: newDClosing,
         dieselSold: newDSold,
+        dieselSalePrice: newDSalePrice,
         dieselAmount: newDAmount,
+        dieselAvgPurchasePrice: dAvg,
+        dieselProfitPerLiter: newDProfitPerL,
+        dieselTotalProfit: newDTotalProfit,
+        totalProfit: newPTotalProfit + newDTotalProfit,
         subtotal: newSubtotal,
       });
 
       // Recalculate whole db to fix stock and current reading correctly
       await recalculateDatabase();
 
-      showToast('Reading updated successfully', 'success');
+      showToast('Reading updated successfully & database synchronized', 'success');
       setEditingReading(null);
     } catch (err) {
       console.error(err);
@@ -206,6 +248,14 @@ export default function FuelManagementPage() {
       showToast('Closing reading must be greater than last reading', 'error');
       return;
     }
+    if (pSold > pStock) {
+      showToast(`Cannot save: Insufficient Petrol stock! Available: ${formatLiters(pStock)}, but closing reading calculates ${formatLiters(pSold)} sold.`, 'error');
+      return;
+    }
+    if (dSold > dStock) {
+      showToast(`Cannot save: Insufficient Diesel stock! Available: ${formatLiters(dStock)}, but closing reading calculates ${formatLiters(dSold)} sold.`, 'error');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -224,12 +274,18 @@ export default function FuelManagementPage() {
         petrolClosingReading: pClosingNum,
         petrolSold: pSold,
         petrolSalePrice: pSalePriceNum,
+        petrolAvgPurchasePrice: settings.petrolAvgPurchasePrice || 0,
+        petrolProfitPerLiter: pProfitPerL,
+        petrolTotalProfit: pTotalProfit,
         petrolAmount: pAmount,
         dieselLastReading: dLastReading,
         dieselClosingReading: dClosingNum,
         dieselSold: dSold,
         dieselSalePrice: dSalePriceNum,
-        dieselAmount: dAmount,
+        dieselAvgPurchasePrice: settings.dieselAvgPurchasePrice || 0,
+        dieselProfitPerLiter: dProfitPerL,
+        dieselTotalProfit: dTotalProfit,
+        totalProfit: pTotalProfit + dTotalProfit,
         subtotal: subtotalAmount,
         createdAt: serverTimestamp()
       });
@@ -250,6 +306,9 @@ export default function FuelManagementPage() {
 
       await batch.commit();
 
+      // Recalculate whole db to ensure chronological integrity and profit synchronization
+      await recalculateDatabase();
+
       showToast('Daily closing saved successfully', 'success');
       setPClosing(''); setDClosing('');
       
@@ -266,42 +325,118 @@ export default function FuelManagementPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-        <h2 className="text-xl font-bold text-slate-800">Daily Closing Entry</h2>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <label className="text-sm font-medium text-slate-600">Closing for:</label>
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">Daily Closing Entry</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Enter closing meter readings to record daily sales and deduct tank stock</p>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <label className="text-sm font-medium text-slate-600">Date:</label>
           <input 
             type="date" 
             value={date} 
             onChange={e => setDate(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
-            className="flex-1 sm:w-auto px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-primary focus:ring-2 focus:ring-primary/20"
+            className="flex-1 sm:w-auto px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-primary focus:ring-2 focus:ring-primary/20"
           />
+        </div>
+      </div>
+
+      {/* Prominent Fuel Purchase Rates & Tank Inventory Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-card border border-amber-200/80 bg-gradient-to-br from-white to-amber-50/40">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 font-bold">
+                <Droplets className="w-5 h-5 text-amber-600" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-900">Petrol Purchase Rate</span>
+            </div>
+            <span className="text-xs font-bold bg-amber-100 text-amber-900 px-2.5 py-0.5 rounded-full">
+              Avg. Cost
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <div>
+              <p className="text-2xl sm:text-3xl font-black text-amber-950">
+                Rs. {formatAmount(settings?.petrolAvgPurchasePrice || 0)}
+                <span className="text-xs font-bold text-amber-700 ml-1">/ Liter</span>
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Weighted average cost across purchases</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Stock</p>
+              <p className="text-sm sm:text-base font-extrabold text-slate-800">{formatLiters(pStock)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-card border border-blue-200/80 bg-gradient-to-br from-white to-blue-50/40">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 font-bold">
+                <Fuel className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-900">Diesel Purchase Rate</span>
+            </div>
+            <span className="text-xs font-bold bg-blue-100 text-blue-900 px-2.5 py-0.5 rounded-full">
+              Avg. Cost
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between mt-1">
+            <div>
+              <p className="text-2xl sm:text-3xl font-black text-blue-950">
+                Rs. {formatAmount(settings?.dieselAvgPurchasePrice || 0)}
+                <span className="text-xs font-bold text-blue-700 ml-1">/ Liter</span>
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Weighted average cost across purchases</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Stock</p>
+              <p className="text-sm sm:text-base font-extrabold text-slate-800">{formatLiters(dStock)}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Petrol Card */}
         <div className="bg-white rounded-2xl shadow-card overflow-hidden border border-slate-100">
-          <div className="bg-petrol p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <Droplets className="w-5 h-5 text-white" />
+          <div className="bg-petrol p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <Droplets className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-white tracking-wider uppercase">Petrol Entry</h3>
             </div>
-            <h3 className="text-lg font-bold text-white tracking-wider uppercase">Petrol</h3>
+            <span className="text-xs font-bold text-white/90 bg-white/10 px-2.5 py-1 rounded-lg">
+              Stock: {formatLiters(pStock)}
+            </span>
           </div>
           
           <div className="p-6 space-y-5">
-            <div className="flex justify-between items-end pb-4 border-b border-slate-100">
+            {/* Prominent Average Purchase Price Box */}
+            <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Last Reading</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-bold text-slate-800">{formatLiters(pLastReading)}</p>
+                <p className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Avg. Purchase Price</p>
+                <p className="text-base font-black text-amber-950 mt-0.5">Rs. {formatAmount(settings?.petrolAvgPurchasePrice || 0)} / L</p>
+              </div>
+              <span className="text-xs font-bold text-amber-800 bg-white px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
+                Cost Basis
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Starting Meter</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-base font-bold text-slate-800">{formatLiters(pLastReading)}</p>
                   <button 
                     type="button"
                     onClick={() => {
                       setCalibrating('petrol');
                       setCalibReading(pLastReading > 0 ? pLastReading.toString() : '');
                     }}
-                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
+                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-primary transition-colors"
                     title="Calibrate / Set starting pump meter reading"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -309,21 +444,51 @@ export default function FuelManagementPage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Avg Purchase</p>
-                <p className="text-sm font-bold text-slate-600">Rs. {formatAmount(settings?.petrolAvgPurchasePrice || 0)}/L</p>
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Tank Stock</p>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className={`inline-block w-2 h-2 rounded-full ${pStock > 500 ? 'bg-emerald-500' : pStock > 0 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                  <p className={`text-base font-black ${pStock > 500 ? 'text-slate-800' : pStock > 0 ? 'text-amber-800' : 'text-danger'}`}>
+                    {formatLiters(pStock)}
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Closing Reading (L) *</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-sm font-bold text-slate-700">Closing Reading (L) *</label>
+                  {pStock <= 0 ? (
+                    <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-md">
+                      ⚠️ Out of Stock
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">Stock: {formatLiters(pStock)}</span>
+                  )}
+                </div>
                 <input 
                   type="number" step="0.01" required value={pClosing} onChange={e => setPClosing(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl bg-slate-50 border ${pClosingNum > 0 && pClosingNum < pLastReading ? 'border-danger focus:ring-danger/20' : 'border-slate-200 focus:ring-petrol/20'} text-lg font-bold text-slate-900 transition-all`}
+                  className={`w-full px-4 py-3 rounded-xl bg-slate-50 border ${
+                    (pClosingNum > 0 && pClosingNum < pLastReading) || isPetrolStockExceeded
+                      ? 'border-danger focus:ring-danger/20 bg-rose-50/50 text-danger' 
+                      : 'border-slate-200 focus:ring-petrol/20'
+                  } text-lg font-bold text-slate-900 transition-all`}
                   placeholder="0.00"
                 />
                 {pClosingNum > 0 && pClosingNum < pLastReading && (
-                  <p className="text-xs text-danger mt-1">Closing must be greater than last reading</p>
+                  <p className="text-xs text-danger mt-1 font-semibold">Closing must be greater than last reading ({formatLiters(pLastReading)})</p>
+                )}
+                {isPetrolStockExceeded && (
+                  <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2.5 text-rose-800 text-xs">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-rose-900 text-sm">Error: Insufficient Petrol Stock!</p>
+                      <p className="mt-0.5">
+                        Current stock is <strong>{formatLiters(pStock)}</strong>, but closing reading calculates <strong>{formatLiters(pSold)}</strong> sold (Shortage of {formatLiters(pSold - pStock)}).
+                      </p>
+                      <p className="mt-1 font-semibold text-rose-700">You cannot enter a reading exceeding available fuel stock.</p>
+                    </div>
+                  </div>
                 )}
               </div>
               <div>
@@ -361,26 +526,42 @@ export default function FuelManagementPage() {
 
         {/* Diesel Card */}
         <div className="bg-white rounded-2xl shadow-card overflow-hidden border border-slate-100">
-          <div className="bg-diesel p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-              <Fuel className="w-5 h-5 text-white" />
+          <div className="bg-diesel p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <Fuel className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-lg font-bold text-white tracking-wider uppercase">Diesel Entry</h3>
             </div>
-            <h3 className="text-lg font-bold text-white tracking-wider uppercase">Diesel</h3>
+            <span className="text-xs font-bold text-white/90 bg-white/10 px-2.5 py-1 rounded-lg">
+              Stock: {formatLiters(dStock)}
+            </span>
           </div>
           
           <div className="p-6 space-y-5">
-            <div className="flex justify-between items-end pb-4 border-b border-slate-100">
+            {/* Prominent Average Purchase Price Box */}
+            <div className="p-3.5 bg-blue-50 border border-blue-200/80 rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Last Reading</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-bold text-slate-800">{formatLiters(dLastReading)}</p>
+                <p className="text-[10px] uppercase font-bold text-blue-800 tracking-wider">Avg. Purchase Price</p>
+                <p className="text-base font-black text-blue-950 mt-0.5">Rs. {formatAmount(settings?.dieselAvgPurchasePrice || 0)} / L</p>
+              </div>
+              <span className="text-xs font-bold text-blue-800 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs">
+                Cost Basis
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-100">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Starting Meter</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-base font-bold text-slate-800">{formatLiters(dLastReading)}</p>
                   <button 
                     type="button"
                     onClick={() => {
                       setCalibrating('diesel');
                       setCalibReading(dLastReading > 0 ? dLastReading.toString() : '');
                     }}
-                    className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-diesel transition-colors"
+                    className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-diesel transition-colors"
                     title="Calibrate / Set starting pump meter reading"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
@@ -388,21 +569,51 @@ export default function FuelManagementPage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Avg Purchase</p>
-                <p className="text-sm font-bold text-slate-600">Rs. {formatAmount(settings?.dieselAvgPurchasePrice || 0)}/L</p>
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Tank Stock</p>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className={`inline-block w-2 h-2 rounded-full ${dStock > 500 ? 'bg-emerald-500' : dStock > 0 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                  <p className={`text-base font-black ${dStock > 500 ? 'text-slate-800' : dStock > 0 ? 'text-amber-800' : 'text-danger'}`}>
+                    {formatLiters(dStock)}
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Closing Reading (L) *</label>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-sm font-bold text-slate-700">Closing Reading (L) *</label>
+                  {dStock <= 0 ? (
+                    <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-md">
+                      ⚠️ Out of Stock
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400">Stock: {formatLiters(dStock)}</span>
+                  )}
+                </div>
                 <input 
                   type="number" step="0.01" required value={dClosing} onChange={e => setDClosing(e.target.value)}
-                  className={`w-full px-4 py-3 rounded-xl bg-slate-50 border ${dClosingNum > 0 && dClosingNum < dLastReading ? 'border-danger focus:ring-danger/20' : 'border-slate-200 focus:ring-diesel/20'} text-lg font-bold text-slate-900 transition-all`}
+                  className={`w-full px-4 py-3 rounded-xl bg-slate-50 border ${
+                    (dClosingNum > 0 && dClosingNum < dLastReading) || isDieselStockExceeded
+                      ? 'border-danger focus:ring-danger/20 bg-rose-50/50 text-danger' 
+                      : 'border-slate-200 focus:ring-diesel/20'
+                  } text-lg font-bold text-slate-900 transition-all`}
                   placeholder="0.00"
                 />
                 {dClosingNum > 0 && dClosingNum < dLastReading && (
-                  <p className="text-xs text-danger mt-1">Closing must be greater than last reading</p>
+                  <p className="text-xs text-danger mt-1 font-semibold">Closing must be greater than last reading ({formatLiters(dLastReading)})</p>
+                )}
+                {isDieselStockExceeded && (
+                  <div className="mt-2 bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2.5 text-rose-800 text-xs">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-rose-900 text-sm">Error: Insufficient Diesel Stock!</p>
+                      <p className="mt-0.5">
+                        Current stock is <strong>{formatLiters(dStock)}</strong>, but closing reading calculates <strong>{formatLiters(dSold)}</strong> sold (Shortage of {formatLiters(dSold - dStock)}).
+                      </p>
+                      <p className="mt-1 font-semibold text-rose-700">You cannot enter a reading exceeding available fuel stock.</p>
+                    </div>
+                  </div>
                 )}
               </div>
               <div>
@@ -469,6 +680,8 @@ export default function FuelManagementPage() {
                             setEditingReading(r);
                             setEditPClosing(r.petrolClosingReading.toString());
                             setEditDClosing(r.dieselClosingReading.toString());
+                            setEditPSalePrice(r.petrolSalePrice ? r.petrolSalePrice.toString() : '');
+                            setEditDSalePrice(r.dieselSalePrice ? r.dieselSalePrice.toString() : '');
                           }}
                           className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                           title="Edit reading"
@@ -586,21 +799,44 @@ export default function FuelManagementPage() {
                   Editing this reading will automatically recalculate today's current stock and readings.
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Petrol Closing Reading (L)</label>
-                  <input 
-                    type="number" step="0.01" value={editPClosing} onChange={e => setEditPClosing(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-petrol/20 text-lg font-bold"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">Last Reading: {editingReading.petrolLastReading} L</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Petrol Closing (L)</label>
+                    <input 
+                      type="number" step="0.01" value={editPClosing} onChange={e => setEditPClosing(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-petrol/20 text-base font-bold"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Last: {editingReading.petrolLastReading} L</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Petrol Rate (Rs.)</label>
+                    <input 
+                      type="number" step="0.01" value={editPSalePrice} onChange={e => setEditPSalePrice(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-petrol/20 text-base font-bold"
+                      placeholder="Sale price"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Current: Rs. {editingReading.petrolSalePrice}</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1.5">Diesel Closing Reading (L)</label>
-                  <input 
-                    type="number" step="0.01" value={editDClosing} onChange={e => setEditDClosing(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-diesel/20 text-lg font-bold"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">Last Reading: {editingReading.dieselLastReading} L</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Diesel Closing (L)</label>
+                    <input 
+                      type="number" step="0.01" value={editDClosing} onChange={e => setEditDClosing(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-diesel/20 text-base font-bold"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Last: {editingReading.dieselLastReading} L</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Diesel Rate (Rs.)</label>
+                    <input 
+                      type="number" step="0.01" value={editDSalePrice} onChange={e => setEditDSalePrice(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-diesel/20 text-base font-bold"
+                      placeholder="Sale price"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Current: Rs. {editingReading.dieselSalePrice}</p>
+                  </div>
                 </div>
               </div>
 
@@ -688,14 +924,21 @@ export default function FuelManagementPage() {
           <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Total Daily Sales</p>
           <p className="text-2xl font-extrabold text-slate-800">Rs. {formatAmount(subtotalAmount)}</p>
         </div>
+
+        {isStockExceeded && (
+          <div className="flex items-center gap-2 text-danger bg-danger/10 px-4 py-2 rounded-xl text-xs font-bold">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>Cannot Save: Reading exceeds available tank stock!</span>
+          </div>
+        )}
         
         <button
           onClick={handleSave}
-          disabled={saving || pClosingNum <= pLastReading || dClosingNum <= dLastReading}
+          disabled={saving || pClosingNum <= pLastReading || dClosingNum <= dLastReading || isStockExceeded}
           className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-primary text-white font-bold hover:bg-primary-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
         >
           <Save className="w-5 h-5" />
-          {saving ? 'Saving...' : 'Save Closing Entry'}
+          {saving ? 'Saving...' : isStockExceeded ? 'Insufficient Stock (Cannot Save)' : 'Save Closing Entry'}
         </button>
       </div>
     </div>
