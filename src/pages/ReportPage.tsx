@@ -432,38 +432,38 @@ export default function ReportPage() {
               </div>
             </div>
 
-            {/* Mobile Cards View (Optional on small screens) */}
+            {/* Mobile Cards View (Optimized for handheld reading) */}
             {viewMode === 'cards' && (
-              <div className="sm:hidden p-4 space-y-3">
+              <div className="sm:hidden p-3.5 space-y-3">
                 {finalRows.length === 0 ? (
                   <p className="text-center py-8 text-slate-400 text-sm">No records found for this period.</p>
                 ) : (
                   finalRows.map((row, i) => (
-                    <div key={i} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/50 space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-700">{row.date}</span>
-                        <span className={`px-2 py-0.5 rounded-md font-bold uppercase text-[10px] ${
-                          row.product === 'Petrol' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'
+                    <div key={i} className="p-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 shadow-2xs space-y-2.5">
+                      <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-200/60">
+                        <span className="font-extrabold text-slate-800">{row.date}</span>
+                        <span className={`px-2.5 py-0.5 rounded-md font-bold uppercase text-[10px] tracking-wider ${
+                          row.product === 'Petrol' ? 'bg-amber-100 text-amber-900 border border-amber-200/60' : 'bg-blue-100 text-blue-900 border border-blue-200/60'
                         }`}>
                           {row.product}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
-                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50">
-                          <p className="text-[10px] uppercase font-bold text-slate-400">Sale (L)</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs">
+                          <p className="text-[10px] uppercase font-bold text-slate-400">Sale Volume</p>
                           <p className="font-black text-slate-800 text-sm tabular-nums mt-0.5">{Number(row.totalSaleLiters).toFixed(2)} L</p>
                         </div>
-                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50">
-                          <p className="text-[10px] uppercase font-bold text-slate-400">Rate</p>
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs">
+                          <p className="text-[10px] uppercase font-bold text-slate-400">Sale Rate</p>
                           <p className="font-bold text-slate-700 text-sm tabular-nums mt-0.5">Rs. {formatAmount(row.avgSalePrice)}</p>
                         </div>
-                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50">
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs">
                           <p className="text-[10px] uppercase font-bold text-slate-400">Profit / Liter</p>
                           <p className={`font-bold text-sm tabular-nums mt-0.5 ${row.profitPerLiter >= 0 ? 'text-success' : 'text-danger'}`}>
                             {row.profitPerLiter >= 0 ? '+' : '-'}Rs. {formatAmount(Math.abs(row.profitPerLiter))}
                           </p>
                         </div>
-                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50 text-right">
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs text-right">
                           <p className="text-[10px] uppercase font-bold text-slate-400">Total Profit</p>
                           <p className={`font-black text-sm tabular-nums mt-0.5 ${row.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                             {row.totalProfit >= 0 ? '' : '-'}Rs. {formatAmount(Math.abs(row.totalProfit))}
@@ -476,26 +476,33 @@ export default function ReportPage() {
 
                 {/* Ending summary card on mobile */}
                 {finalRows.length > 0 && (
-                  <div className="p-4 rounded-xl border-2 border-slate-900 bg-slate-900 text-white space-y-2 mt-4">
-                    <p className="text-xs uppercase font-black text-amber-400">Month-End Ending Totals</p>
+                  <div className="p-4 rounded-2xl border border-slate-800 bg-slate-900 text-white space-y-2.5 mt-3 shadow-md">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <p className="text-xs uppercase font-black text-amber-400 tracking-wider">Period Fuel Totals</p>
+                      <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">Summary</span>
+                    </div>
                     {(reportType === 'All' || reportType === 'Petrol') && (
-                      <div className="flex justify-between text-xs pt-1 border-t border-slate-800">
+                      <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-300">Total Petrol Sold:</span>
-                        <span className="font-black text-amber-300">{Number(totalPetrolLiters).toFixed(2)} Liters</span>
+                        <span className="font-black text-amber-300 tabular-nums">{Number(totalPetrolLiters).toFixed(2)} L</span>
                       </div>
                     )}
                     {(reportType === 'All' || reportType === 'Diesel') && (
-                      <div className="flex justify-between text-xs pt-1 border-t border-slate-800">
+                      <div className="flex justify-between items-center text-xs">
                         <span className="text-slate-300">Total Diesel Sold:</span>
-                        <span className="font-black text-blue-300">{Number(totalDieselLiters).toFixed(2)} Liters</span>
+                        <span className="font-black text-blue-300 tabular-nums">{Number(totalDieselLiters).toFixed(2)} L</span>
                       </div>
                     )}
                     {reportType === 'All' && (
-                      <div className="flex justify-between text-xs pt-1 border-t border-slate-700">
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-800">
                         <span className="text-slate-200 font-bold">Total Combined Volume:</span>
-                        <span className="font-black text-white">{Number(totalCombinedLiters).toFixed(2)} Liters</span>
+                        <span className="font-black text-white tabular-nums">{Number(totalCombinedLiters).toFixed(2)} L</span>
                       </div>
                     )}
+                    <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-800 font-bold">
+                      <span className="text-slate-200">Total Gross Profit:</span>
+                      <span className="font-black text-emerald-400 tabular-nums">Rs. {formatAmount(finalSubtotal)}</span>
+                    </div>
                   </div>
                 )}
               </div>
