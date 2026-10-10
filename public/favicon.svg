@@ -1,1 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1A3C6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1A3C6E"/>
+      <stop offset="100%" stop-color="#0A192F"/>
+    </linearGradient>
+    <linearGradient id="flameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <linearGradient id="innerCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded Squircle Background -->
+  <rect x="4" y="4" width="120" height="120" rx="28" ry="28" fill="url(#bgGrad)" stroke="#F59E0B" stroke-opacity="0.35" stroke-width="2"/>
+  
+  <!-- Outer Flame / Fuel Drop -->
+  <path d="M64 24 C64 24, 88 56, 88 78 C88 91.25 77.25 102 64 102 C50.75 102 40 91.25 40 78 C40 56, 64 24, 64 24 Z" fill="url(#flameGrad)"/>
+  
+  <!-- Inner Flame Core -->
+  <path d="M64 46 C64 46, 77 65, 77 78 C77 85.18 71.18 91 64 91 C56.82 91 51 85.18 51 78 C51 65, 64 46, 64 46 Z" fill="url(#innerCore)"/>
+</svg>

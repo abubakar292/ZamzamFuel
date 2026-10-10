@@ -504,22 +504,22 @@ export default function PurchasesPage() {
                   <div className="order-1 md:order-2 bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
                     <div className="flex justify-between items-center text-sm font-bold text-slate-600">
                       <span>Net Subtotal</span>
-                      <span>Rs. {formatAmount(netSubtotal)}</span>
+                      <span className="tabular-nums">Rs. {formatAmount(netSubtotal)}</span>
                     </div>
                     <div className="flex justify-between items-center text-lg font-extrabold text-slate-800 border-b border-slate-200 pb-4">
                       <span>Total</span>
-                      <span>Rs. {formatAmount(total)}</span>
+                      <span className="tabular-nums">Rs. {formatAmount(total)}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-bold text-slate-600">Amount Paid</label>
+                    <div className="flex justify-between items-center gap-2">
+                      <label className="text-sm font-bold text-slate-600 shrink-0">Amount Paid</label>
                       <input type="number" min="0" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
-                        className="w-32 px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="w-36 sm:w-44 px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 focus:border-primary tabular-nums"
                         placeholder="0.00"
                       />
                     </div>
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-sm font-bold text-slate-600">Remaining Balance</span>
-                      <span className={`text-lg font-extrabold ${remainingBalance > 0 ? 'text-danger' : 'text-success'}`}>
+                    <div className="flex justify-between items-center gap-2 pt-2">
+                      <span className="text-sm font-bold text-slate-600 shrink-0">Remaining Balance</span>
+                      <span className={`text-base sm:text-lg font-extrabold tabular-nums truncate text-right ${remainingBalance > 0 ? 'text-danger' : 'text-success'}`}>
                         Rs. {formatAmount(remainingBalance)}
                       </span>
                     </div>
@@ -573,19 +573,23 @@ export default function PurchasesPage() {
                           </div>
                         </div>
                         
-                        <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-2 mt-4 md:mt-0 pt-4 md:pt-0 border-t border-slate-100 md:border-0">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 hidden md:block">Grand Total</p>
-                          <p className="font-extrabold text-xl text-slate-800">Rs. {formatAmount(p.total)}</p>
-                          {p.remainingBalance > 0 ? (
-                            <span className="text-xs font-bold bg-danger-bg text-danger-dark px-2 py-1 rounded-md mt-1">
-                              Credit: Rs. {formatAmount(p.remainingBalance)} rem.
-                            </span>
-                          ) : (
-                            <span className="text-xs font-bold bg-success-bg text-success-dark px-2 py-1 rounded-md flex items-center gap-1 mt-1">
-                              ✓ Fully Paid
-                            </span>
-                          )}
-                          <div className="flex items-center gap-2 mt-2.5">
+                        <div className="flex flex-col sm:flex-row md:flex-col items-start sm:items-center md:items-end justify-between gap-3 mt-4 md:mt-0 pt-4 md:pt-0 border-t border-slate-100 md:border-0 w-full md:w-auto">
+                          <div className="w-full sm:w-auto flex flex-row sm:flex-col items-center sm:items-end justify-between gap-2">
+                            <div className="text-left sm:text-right">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Grand Total</p>
+                              <p className="font-black text-lg sm:text-xl text-slate-800 tabular-nums">Rs. {formatAmount(p.total)}</p>
+                            </div>
+                            {p.remainingBalance > 0 ? (
+                              <span className="text-xs font-bold bg-danger-bg text-danger-dark px-2.5 py-1 rounded-md shrink-0 tabular-nums">
+                                Credit: Rs. {formatAmount(p.remainingBalance)} rem.
+                              </span>
+                            ) : (
+                              <span className="text-xs font-bold bg-success-bg text-success-dark px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0">
+                                ✓ Fully Paid
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 self-end sm:self-auto mt-1 sm:mt-0">
                             <button
                               onClick={() => handleStartEditPurchase(p)}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-primary/10 border border-primary/20 transition-colors"

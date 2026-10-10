@@ -7,6 +7,8 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { FuelPrices } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStationProfile } from '../../hooks/useStationProfile';
+import { PWAInstallButton } from '../PWAInstallPrompt';
+import { formatLiters } from '../../utils/calculations';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -56,10 +58,10 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   const notifications = [];
   if (fuelPrices) {
     if (Number(fuelPrices.petrolStock) < 1000) {
-      notifications.push({ id: 'p_low', text: `Low Petrol Stock: ${Number(fuelPrices.petrolStock).toFixed(0)}L remaining` });
+      notifications.push({ id: 'p_low', text: `Low Petrol Stock: ${formatLiters(fuelPrices.petrolStock)} remaining` });
     }
     if (Number(fuelPrices.dieselStock) < 1000) {
-      notifications.push({ id: 'd_low', text: `Low Diesel Stock: ${Number(fuelPrices.dieselStock).toFixed(0)}L remaining` });
+      notifications.push({ id: 'd_low', text: `Low Diesel Stock: ${formatLiters(fuelPrices.dieselStock)} remaining` });
     }
   }
 
@@ -75,8 +77,19 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         <h1 className="text-lg font-bold text-slate-800 hidden sm:block">
           Welcome back, {profile.ownerName || 'Admin'}
         </h1>
+        <div className="sm:hidden flex flex-col">
+          <span className="text-xs font-black text-primary leading-tight uppercase truncate">
+            {profile.stationName || 'Zamzam Fuel'}
+          </span>
+          <span className="text-[10px] text-slate-400 font-semibold truncate leading-none">
+            {profile.ownerName || 'Admin'}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-1.5 sm:gap-4">
+        {/* PWA Install / Shortcut button */}
+        <PWAInstallButton compact className="text-[11px] py-1 px-2.5 sm:text-xs sm:py-1.5 sm:px-3" />
+
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}

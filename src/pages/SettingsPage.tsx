@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, User, Phone, MapPin, Save, Wallet } from 'lucide-react';
+import { Building2, User, Phone, MapPin, Save, Wallet, Smartphone } from 'lucide-react';
 import { useStationProfile } from '../hooks/useStationProfile';
 import { useToast } from '../components/Toast';
+import { PWAInstallButton } from '../components/PWAInstallPrompt';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 export default function SettingsPage() {
   const { profile, updateProfile, loading } = useStationProfile();
   const { showToast } = useToast();
+  const { isInstalled } = usePWAInstall();
   const [formData, setFormData] = useState(profile);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -174,6 +177,42 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+        </section>
+
+        {/* PWA & Mobile Shortcut Section */}
+        <section className="bg-white rounded-2xl shadow-card-lg border border-slate-100 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <Smartphone className="w-5 h-5 text-amber-500" />
+              App Installation & Mobile Shortcut
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              Install Zamzam Fuel directly onto your phone or computer home screen. No APK download or app store needed!
+            </p>
+          </div>
+          <div className="p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <img src="/pwa-192x192.png" alt="Shortcut Icon" className="w-14 h-14 rounded-2xl shadow-md border border-amber-500/30 shrink-0 object-cover" />
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-800">
+                  {isInstalled ? 'App is installed on this device' : 'Create Home Screen Shortcut'}
+                </p>
+                <p className="text-xs text-slate-500 max-w-md">
+                  {isInstalled 
+                    ? 'You are running Zamzam Fuel as an installed standalone app with full offline support.' 
+                    : 'Add a 1-tap shortcut icon to your phone home screen with rounded corners that runs full-screen just like a native app.'}
+                </p>
+              </div>
+            </div>
+            {!isInstalled && (
+              <PWAInstallButton className="shrink-0" />
+            )}
+            {isInstalled && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs">
+                Installed & Active
+              </span>
+            )}
+          </div>
         </section>
       </div>
     </div>

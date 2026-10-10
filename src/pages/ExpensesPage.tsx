@@ -136,7 +136,7 @@ export default function ExpensesPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">This Month</p>
-                  <p className="text-2xl font-extrabold text-slate-800">Rs. {formatAmount(currentMonthExpenses)}</p>
+                  <p className="text-xl sm:text-2xl font-black text-slate-800 tabular-nums truncate">Rs. {formatAmount(currentMonthExpenses)}</p>
                 </div>
               </div>
             </div>
@@ -181,8 +181,8 @@ export default function ExpensesPage() {
                         {exp.paidTo && <p className="text-sm text-slate-500 truncate">Paid to: {exp.paidTo}</p>}
                       </div>
                       
-                      <div className="flex items-center justify-between w-full sm:w-auto gap-6 sm:gap-4 shrink-0 mt-2 sm:mt-0">
-                        <p className="font-bold text-lg text-slate-800">Rs. {formatAmount(exp.amount)}</p>
+                      <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-4 shrink-0 mt-2 sm:mt-0">
+                        <p className="font-black text-base sm:text-lg text-slate-800 tabular-nums shrink-0">Rs. {formatAmount(exp.amount)}</p>
                         <button 
                           onClick={() => setExpenseToDelete(exp)}
                           className="p-2 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"

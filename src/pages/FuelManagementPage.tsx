@@ -355,17 +355,17 @@ export default function FuelManagementPage() {
               Avg. Cost
             </span>
           </div>
-          <div className="flex items-baseline justify-between mt-1">
-            <div>
-              <p className="text-2xl sm:text-3xl font-black text-amber-950">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2 mt-1">
+            <div className="min-w-0">
+              <p className="text-xl xs:text-2xl sm:text-3xl font-black text-amber-950 tabular-nums truncate">
                 Rs. {formatAmount(settings?.petrolAvgPurchasePrice || 0)}
                 <span className="text-xs font-bold text-amber-700 ml-1">/ Liter</span>
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Weighted average cost across purchases</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 truncate">Weighted average cost across purchases</p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Stock</p>
-              <p className="text-sm sm:text-base font-extrabold text-slate-800">{formatLiters(pStock)}</p>
+              <p className="text-sm sm:text-base font-extrabold text-slate-800 tabular-nums">{formatLiters(pStock)}</p>
             </div>
           </div>
         </div>
@@ -382,17 +382,17 @@ export default function FuelManagementPage() {
               Avg. Cost
             </span>
           </div>
-          <div className="flex items-baseline justify-between mt-1">
-            <div>
-              <p className="text-2xl sm:text-3xl font-black text-blue-950">
+          <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2 mt-1">
+            <div className="min-w-0">
+              <p className="text-xl xs:text-2xl sm:text-3xl font-black text-blue-950 tabular-nums truncate">
                 Rs. {formatAmount(settings?.dieselAvgPurchasePrice || 0)}
                 <span className="text-xs font-bold text-blue-700 ml-1">/ Liter</span>
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Weighted average cost across purchases</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 truncate">Weighted average cost across purchases</p>
             </div>
-            <div className="text-right">
+            <div className="sm:text-right shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Stock</p>
-              <p className="text-sm sm:text-base font-extrabold text-slate-800">{formatLiters(dStock)}</p>
+              <p className="text-sm sm:text-base font-extrabold text-slate-800 tabular-nums">{formatLiters(dStock)}</p>
             </div>
           </div>
         </div>
@@ -671,8 +671,8 @@ export default function FuelManagementPage() {
                 {recentReadings.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="py-3 font-medium text-slate-700">{formatDisplayDate(r.date)}</td>
-                    <td className="py-3 text-slate-600">{r.petrolClosingReading} L</td>
-                    <td className="py-3 text-slate-600">{r.dieselClosingReading} L</td>
+                    <td className="py-3 text-slate-600 font-semibold tabular-nums">{formatLiters(r.petrolClosingReading)}</td>
+                    <td className="py-3 text-slate-600 font-semibold tabular-nums">{formatLiters(r.dieselClosingReading)}</td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button 

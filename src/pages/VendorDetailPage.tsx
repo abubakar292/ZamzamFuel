@@ -190,29 +190,29 @@ export default function VendorDetailPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl shadow-card border border-slate-100">
-          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Total Purchases</p>
-          <p className="text-xl font-bold text-slate-800">Rs. {formatAmount(vendor.totalPurchases)}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-card border border-slate-100 min-w-0" title={`Rs. ${formatAmount(vendor.totalPurchases)}`}>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 truncate">Total Purchases</p>
+          <p className="text-lg sm:text-xl font-black text-slate-800 tabular-nums truncate">Rs. {formatAmount(vendor.totalPurchases)}</p>
         </div>
-        <div className="bg-white p-5 rounded-2xl shadow-card border border-slate-100">
-          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Total Paid</p>
-          <p className="text-xl font-bold text-success">Rs. {formatAmount(vendor.totalPaid)}</p>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-card border border-slate-100 min-w-0" title={`Rs. ${formatAmount(vendor.totalPaid)}`}>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 truncate">Total Paid</p>
+          <p className="text-lg sm:text-xl font-black text-success tabular-nums truncate">Rs. {formatAmount(vendor.totalPaid)}</p>
         </div>
-        <div className={`p-5 rounded-2xl shadow-card border ${vendor.vendorQarz > 0 ? 'bg-danger-bg border-danger/20' : 'bg-success-bg border-success/20'}`}>
-          <div className="flex justify-between items-start">
-            <div>
-              <p className={`text-[10px] uppercase tracking-wider font-bold mb-1 ${vendor.vendorQarz > 0 ? 'text-danger/70' : 'text-success/70'}`}>
+        <div className={`p-4 sm:p-5 rounded-2xl shadow-card border min-w-0 ${vendor.vendorQarz > 0 ? 'bg-danger-bg border-danger/20' : 'bg-success-bg border-success/20'}`} title={`Rs. ${formatAmount(vendor.vendorQarz)}`}>
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <p className={`text-[10px] uppercase tracking-wider font-bold mb-1 truncate ${vendor.vendorQarz > 0 ? 'text-danger/70' : 'text-success/70'}`}>
                 Balance (Qarz)
               </p>
-              <p className={`text-xl font-bold ${vendor.vendorQarz > 0 ? 'text-danger' : 'text-success'}`}>
+              <p className={`text-lg sm:text-xl font-black tabular-nums truncate ${vendor.vendorQarz > 0 ? 'text-danger' : 'text-success'}`}>
                 Rs. {formatAmount(vendor.vendorQarz)}
               </p>
             </div>
             {vendor.vendorQarz > 0 && (
               <button 
                 onClick={() => setIsPayOpen(true)}
-                className="bg-danger text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-danger/90 transition-colors shadow-sm"
+                className="bg-danger text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold hover:bg-danger/90 transition-colors shadow-sm shrink-0"
               >
                 Pay Now
               </button>
@@ -231,26 +231,26 @@ export default function VendorDetailPage() {
             <div className="p-8 text-center text-slate-500 text-sm">No transactions yet.</div>
           ) : (
             ledgerItems.map(item => (
-              <div key={item.id} className="p-4 sm:px-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              <div key={item.id} className="p-4 sm:px-6 flex items-center justify-between hover:bg-slate-50 transition-colors gap-3">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className={`w-9 sm:w-10 h-9 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${
                     item.type === 'purchase' ? 'bg-danger/10 text-danger' : 'bg-success/10 text-success'
                   }`}>
-                    {item.type === 'purchase' ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownRight className="w-5 h-5" />}
+                    {item.type === 'purchase' ? <ArrowUpRight className="w-4 sm:w-5 h-4 sm:h-5" /> : <ArrowDownRight className="w-4 sm:w-5 h-4 sm:h-5" />}
                   </div>
-                  <div>
-                    <p className="font-medium text-slate-800 text-sm sm:text-base">{item.label}</p>
-                    <p className="text-xs text-slate-400">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 text-sm sm:text-base truncate">{item.label}</p>
+                    <p className="text-[11px] sm:text-xs text-slate-400 truncate">
                       {formatDisplayDate(item.date, 'dd MMM yyyy, hh:mm a')}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                   <div className="text-right">
-                    <p className={`font-bold ${item.type === 'purchase' ? 'text-danger' : 'text-success'}`}>
+                    <p className={`font-black text-sm sm:text-base tabular-nums ${item.type === 'purchase' ? 'text-danger' : 'text-success'}`}>
                       {item.type === 'purchase' ? '+' : '-'}Rs. {formatAmount(item.amount)}
                     </p>
-                    <p className="text-xs text-slate-500 font-medium">Bal: Rs. {formatAmount(item.runningBalance || 0)}</p>
+                    <p className="text-[11px] text-slate-500 font-semibold tabular-nums">Bal: Rs. {formatAmount(item.runningBalance || 0)}</p>
                   </div>
                   {item.type === 'payment' && item.originalId && (
                     <button

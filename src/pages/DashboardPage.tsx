@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { recalculateDatabase } from '../utils/recalculate';
 import { useToast } from '../components/Toast';
-import { formatAmount } from '../utils/calculations';
+import { formatAmount, formatLiters } from '../utils/calculations';
 
 export default function DashboardPage() {
   const [fuelPrices, setFuelPrices] = useState<FuelPrices | null>(null);
@@ -262,32 +262,32 @@ export default function DashboardPage() {
               )}
             </div>
             
-            <div className="space-y-1 overflow-hidden">
-              <div className="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight truncate">
-                {!card.isLiters && <span className="text-sm text-slate-400 font-medium mr-1">Rs.</span>}
+            <div className="space-y-1 overflow-hidden min-w-0" title={!card.isLiters ? `Rs. ${formatAmount(card.mainVal)}` : `${formatLiters(card.mainVal)}`}>
+              <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-800 tracking-tight truncate tabular-nums">
+                {!card.isLiters && <span className="text-xs sm:text-sm text-slate-400 font-medium mr-1">Rs.</span>}
                 <CountUp end={card.mainVal} isCurrency={!card.isLiters} />
-                {card.isLiters && <span className="text-sm text-slate-400 font-medium ml-1">L</span>}
+                {card.isLiters && <span className="text-xs sm:text-sm text-slate-400 font-medium ml-1">L</span>}
               </div>
               
               {card.id === 'cash' ? (
                 <div className="text-xs font-semibold text-slate-500 group-hover:text-success transition-colors flex items-center gap-1 truncate pt-0.5">
                   {initialInvestment > 0 ? (
                     <>
-                      <span className="text-slate-400">Capital:</span>
-                      <span className="font-bold text-slate-700">Rs. {formatAmount(initialInvestment)}</span>
+                      <span className="text-slate-400 shrink-0">Capital:</span>
+                      <span className="font-bold text-slate-700 tabular-nums truncate">Rs. {formatAmount(initialInvestment)}</span>
                     </>
                   ) : (
-                    <span className="text-primary font-medium flex items-center gap-0.5">
-                      <Plus className="w-3 h-3" /> Add Starting Capital
+                    <span className="text-primary font-medium flex items-center gap-0.5 truncate">
+                      <Plus className="w-3 h-3 shrink-0" /> Add Starting Capital
                     </span>
                   )}
                 </div>
               ) : card.subVal !== null ? (
-                <div className="text-sm font-medium text-slate-400 truncate">
+                <div className="text-xs sm:text-sm font-semibold text-slate-400 truncate tabular-nums">
                   Rs. <CountUp end={card.subVal} isCurrency={true} />
                 </div>
               ) : (
-                <div className="text-sm font-medium text-slate-400 opacity-0">Spacer</div>
+                <div className="text-xs sm:text-sm font-semibold text-slate-400 opacity-0">Spacer</div>
               )}
             </div>
           </motion.div>
@@ -474,31 +474,55 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* Shortcuts */}
+      {/* Quick Access Action Cards */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="grid grid-cols-1 md:grid-cols-2 gap-4"
+        className="space-y-3"
       >
-        <Link to="/vendors" className="bg-white p-6 rounded-2xl shadow-card hover:shadow-card-lg transition-all flex items-center gap-4 group">
-          <div className="w-14 h-14 rounded-2xl bg-primary/5 group-hover:bg-primary/10 transition-colors flex items-center justify-center">
-            <Users className="w-7 h-7 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Vendors List</h3>
-            <p className="text-sm text-slate-500">Manage accounts & payments</p>
-          </div>
-        </Link>
-        <Link to="/reports" className="bg-white p-6 rounded-2xl shadow-card hover:shadow-card-lg transition-all flex items-center gap-4 group">
-          <div className="w-14 h-14 rounded-2xl bg-accent/10 group-hover:bg-accent/20 transition-colors flex items-center justify-center">
-            <BarChart2 className="w-7 h-7 text-accent" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Sales Report</h3>
-            <p className="text-sm text-slate-500">Generate PDF statements</p>
-          </div>
-        </Link>
+        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider px-1">Quick Actions</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <Link to="/fuel" className="bg-white p-4 sm:p-5 rounded-2xl shadow-card hover:shadow-card-lg transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 group border border-slate-100 hover:border-amber-300">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 text-amber-600 transition-colors flex items-center justify-center shrink-0">
+              <Fuel className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm sm:text-base font-bold text-slate-800 truncate">Daily Fuel Sale</h4>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">Record meter closing & profit</p>
+            </div>
+          </Link>
+
+          <Link to="/purchases" className="bg-white p-4 sm:p-5 rounded-2xl shadow-card hover:shadow-card-lg transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 group border border-slate-100 hover:border-blue-300">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 text-blue-600 transition-colors flex items-center justify-center shrink-0">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm sm:text-base font-bold text-slate-800 truncate">Fuel Purchase</h4>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">Record tanker stock purchase</p>
+            </div>
+          </Link>
+
+          <Link to="/expenses" className="bg-white p-4 sm:p-5 rounded-2xl shadow-card hover:shadow-card-lg transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 group border border-slate-100 hover:border-rose-300">
+            <div className="w-11 h-11 rounded-xl bg-rose-500/10 group-hover:bg-rose-500/20 text-rose-600 transition-colors flex items-center justify-center shrink-0">
+              <ArrowDownRight className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm sm:text-base font-bold text-slate-800 truncate">Station Expense</h4>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">Add generator, staff, bills</p>
+            </div>
+          </Link>
+
+          <Link to="/reports" className="bg-white p-4 sm:p-5 rounded-2xl shadow-card hover:shadow-card-lg transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 group border border-slate-100 hover:border-emerald-300">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 text-emerald-600 transition-colors flex items-center justify-center shrink-0">
+              <BarChart2 className="w-6 h-6" />
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm sm:text-base font-bold text-slate-800 truncate">Sales Report</h4>
+              <p className="text-[11px] text-slate-400 hidden sm:block truncate">Export PDF & view profit</p>
+            </div>
+          </Link>
+        </div>
       </motion.div>
     </div>
   );

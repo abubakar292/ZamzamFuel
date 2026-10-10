@@ -108,11 +108,11 @@ export default function VendorsPage() {
               </Link>
             </div>
             
-            <div className="pt-4 border-t border-slate-100 flex justify-between items-end">
-              <div>
+            <div className="pt-4 border-t border-slate-100 flex justify-between items-end gap-2">
+              <div className="min-w-0" title={vendor.vendorQarz > 0 ? `Rs. ${formatAmount(vendor.vendorQarz)}` : 'Cleared'}>
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Current Balance</p>
                 {vendor.vendorQarz > 0 ? (
-                  <p className="font-bold text-danger">Rs. {formatAmount(vendor.vendorQarz)}</p>
+                  <p className="font-extrabold text-danger tabular-nums truncate text-base">Rs. {formatAmount(vendor.vendorQarz)}</p>
                 ) : (
                   <p className="font-bold text-success flex items-center gap-1">Cleared <span className="text-sm">✓</span></p>
                 )}

@@ -347,48 +347,48 @@ export default function ReportPage() {
       {generated && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           {/* Summary Metric Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div className="bg-white rounded-2xl p-4 border border-amber-200/80 bg-gradient-to-br from-white to-amber-50/50 shadow-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
+            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-amber-200/80 bg-gradient-to-br from-white to-amber-50/50 shadow-xs min-w-0" title={`${Number(totalPetrolLiters).toFixed(2)} Liters`}>
               <div className="flex items-center gap-1.5 text-amber-800">
-                <Droplets className="w-3.5 h-3.5" />
-                <p className="text-[10px] uppercase font-bold tracking-wider">Total Petrol</p>
+                <Droplets className="w-3.5 h-3.5 shrink-0" />
+                <p className="text-[10px] uppercase font-bold tracking-wider truncate">Total Petrol</p>
               </div>
-              <p className="text-xl sm:text-2xl font-black text-amber-950 mt-1">
+              <p className="text-sm xs:text-base sm:text-xl lg:text-2xl font-black text-amber-950 mt-1 tabular-nums truncate tracking-tight">
                 {Number(totalPetrolLiters).toFixed(2)} <span className="text-xs font-semibold text-amber-700">L</span>
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-blue-200/80 bg-gradient-to-br from-white to-blue-50/50 shadow-xs">
+            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-blue-200/80 bg-gradient-to-br from-white to-blue-50/50 shadow-xs min-w-0" title={`${Number(totalDieselLiters).toFixed(2)} Liters`}>
               <div className="flex items-center gap-1.5 text-blue-800">
-                <Fuel className="w-3.5 h-3.5" />
-                <p className="text-[10px] uppercase font-bold tracking-wider">Total Diesel</p>
+                <Fuel className="w-3.5 h-3.5 shrink-0" />
+                <p className="text-[10px] uppercase font-bold tracking-wider truncate">Total Diesel</p>
               </div>
-              <p className="text-xl sm:text-2xl font-black text-blue-950 mt-1">
+              <p className="text-sm xs:text-base sm:text-xl lg:text-2xl font-black text-blue-950 mt-1 tabular-nums truncate tracking-tight">
                 {Number(totalDieselLiters).toFixed(2)} <span className="text-xs font-semibold text-blue-700">L</span>
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
-              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Gross Profit</p>
-              <p className={`text-xl sm:text-2xl font-black mt-1 ${finalSubtotal >= 0 ? 'text-slate-800' : 'text-danger'}`}>
+            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-xs min-w-0" title={`Rs. ${formatAmount(finalSubtotal)}`}>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider truncate">Gross Profit</p>
+              <p className={`text-sm xs:text-base sm:text-xl lg:text-2xl font-black mt-1 tabular-nums truncate tracking-tight ${finalSubtotal >= 0 ? 'text-slate-800' : 'text-danger'}`}>
                 {finalSubtotal >= 0 ? '' : '-'}Rs. {formatAmount(Math.abs(finalSubtotal))}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-4 border border-rose-200 bg-rose-50/20 shadow-xs">
-              <p className="text-[10px] uppercase font-bold text-rose-500 tracking-wider">Expenses</p>
-              <p className="text-xl sm:text-2xl font-black text-danger mt-1">
+            <div className="bg-white rounded-2xl p-3 sm:p-4 border border-rose-200 bg-rose-50/20 shadow-xs min-w-0" title={`Rs. ${formatAmount(expensesTotal)}`}>
+              <p className="text-[10px] uppercase font-bold text-rose-500 tracking-wider truncate">Expenses</p>
+              <p className="text-sm xs:text-base sm:text-xl lg:text-2xl font-black text-danger mt-1 tabular-nums truncate tracking-tight">
                 Rs. {formatAmount(expensesTotal)}
               </p>
             </div>
 
-            <div className={`rounded-2xl p-4 border shadow-xs col-span-2 sm:col-span-1 ${
+            <div className={`rounded-2xl p-3 sm:p-4 border shadow-xs col-span-2 sm:col-span-1 min-w-0 ${
               finalIncome >= 0 ? 'bg-success-bg border-success/30' : 'bg-danger-bg border-danger/30'
-            }`}>
-              <p className={`text-[10px] uppercase font-bold tracking-wider ${finalIncome >= 0 ? 'text-success' : 'text-danger'}`}>
+            }`} title={`Rs. ${formatAmount(finalIncome)}`}>
+              <p className={`text-[10px] uppercase font-bold tracking-wider truncate ${finalIncome >= 0 ? 'text-success' : 'text-danger'}`}>
                 Net Income
               </p>
-              <p className={`text-xl sm:text-2xl font-black mt-1 ${finalIncome >= 0 ? 'text-success' : 'text-danger'}`}>
+              <p className={`text-sm xs:text-base sm:text-xl lg:text-2xl font-black mt-1 tabular-nums truncate tracking-tight ${finalIncome >= 0 ? 'text-success' : 'text-danger'}`}>
                 {finalIncome >= 0 ? '' : '-'}Rs. {formatAmount(Math.abs(finalIncome))}
               </p>
             </div>
@@ -399,14 +399,14 @@ export default function ReportPage() {
             <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
               <div>
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" /> Daily Breakdown & Month Sum
+                  <FileText className="w-4 h-4 text-primary shrink-0" /> Daily Breakdown & Month Sum
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Showing sales from {formatDisplayDate(fromDate)} to {formatDisplayDate(toDate)}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {/* Mobile View Toggle */}
                 <div className="sm:hidden flex bg-slate-200/80 p-0.5 rounded-lg text-xs font-bold">
                   <button 
@@ -425,7 +425,7 @@ export default function ReportPage() {
 
                 <button 
                   onClick={handleExportPDF} 
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-sm ml-auto sm:ml-0"
                 >
                   <Download className="w-3.5 h-3.5" /> Export PDF
                 </button>
@@ -448,24 +448,24 @@ export default function ReportPage() {
                           {row.product}
                         </span>
                       </div>
-                      <div className="grid grid-cols-4 gap-1.5 text-xs pt-1 border-t border-slate-200/60">
-                        <div>
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
+                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50">
                           <p className="text-[10px] uppercase font-bold text-slate-400">Sale (L)</p>
-                          <p className="font-black text-slate-800">{Number(row.totalSaleLiters).toFixed(2)} L</p>
+                          <p className="font-black text-slate-800 text-sm tabular-nums mt-0.5">{Number(row.totalSaleLiters).toFixed(2)} L</p>
                         </div>
-                        <div>
+                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50">
                           <p className="text-[10px] uppercase font-bold text-slate-400">Rate</p>
-                          <p className="font-bold text-slate-700">Rs. {formatAmount(row.avgSalePrice)}</p>
+                          <p className="font-bold text-slate-700 text-sm tabular-nums mt-0.5">Rs. {formatAmount(row.avgSalePrice)}</p>
                         </div>
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-slate-400">Profit/L</p>
-                          <p className={`font-bold ${row.profitPerLiter >= 0 ? 'text-success' : 'text-danger'}`}>
+                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50">
+                          <p className="text-[10px] uppercase font-bold text-slate-400">Profit / Liter</p>
+                          <p className={`font-bold text-sm tabular-nums mt-0.5 ${row.profitPerLiter >= 0 ? 'text-success' : 'text-danger'}`}>
                             {row.profitPerLiter >= 0 ? '+' : '-'}Rs. {formatAmount(Math.abs(row.profitPerLiter))}
                           </p>
                         </div>
-                        <div className="text-right">
+                        <div className="bg-white/80 p-2 rounded-lg border border-slate-200/50 text-right">
                           <p className="text-[10px] uppercase font-bold text-slate-400">Total Profit</p>
-                          <p className={`font-black ${row.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                          <p className={`font-black text-sm tabular-nums mt-0.5 ${row.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                             {row.totalProfit >= 0 ? '' : '-'}Rs. {formatAmount(Math.abs(row.totalProfit))}
                           </p>
                         </div>
@@ -530,12 +530,12 @@ export default function ReportPage() {
                             {row.product}
                           </span>
                         </td>
-                        <td className="py-3 px-4 sm:px-5 text-slate-800 text-right font-bold">{Number(row.totalSaleLiters).toFixed(2)}</td>
-                        <td className="py-3 px-4 sm:px-5 text-slate-600 text-right">Rs. {formatAmount(row.avgSalePrice)}</td>
-                        <td className={`py-3 px-4 sm:px-5 text-right font-bold ${row.profitPerLiter >= 0 ? 'text-success' : 'text-danger'}`}>
+                        <td className="py-3 px-4 sm:px-5 text-slate-800 text-right font-bold tabular-nums whitespace-nowrap">{Number(row.totalSaleLiters).toFixed(2)}</td>
+                        <td className="py-3 px-4 sm:px-5 text-slate-600 text-right tabular-nums whitespace-nowrap">Rs. {formatAmount(row.avgSalePrice)}</td>
+                        <td className={`py-3 px-4 sm:px-5 text-right font-bold tabular-nums whitespace-nowrap ${row.profitPerLiter >= 0 ? 'text-success' : 'text-danger'}`}>
                           {row.profitPerLiter >= 0 ? '+' : '-'}Rs. {formatAmount(Math.abs(row.profitPerLiter))}
                         </td>
-                        <td className={`py-3 px-4 sm:px-5 text-right font-bold ${row.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
+                        <td className={`py-3 px-4 sm:px-5 text-right font-bold tabular-nums whitespace-nowrap ${row.totalProfit >= 0 ? 'text-success' : 'text-danger'}`}>
                           {row.totalProfit >= 0 ? '' : '-'}Rs. {formatAmount(Math.abs(row.totalProfit))}
                         </td>
                       </tr>

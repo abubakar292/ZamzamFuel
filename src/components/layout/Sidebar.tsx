@@ -5,6 +5,7 @@ import {
   Receipt, Users, BarChart2, Flame, X, Settings
 } from 'lucide-react';
 import { useStationProfile } from '../../hooks/useStationProfile';
+import { PWAInstallButton } from '../PWAInstallPrompt';
 
 const navItems = [
   { path: '/',           icon: LayoutDashboard, label: 'Dashboard' },
@@ -79,9 +80,10 @@ export default function Sidebar({ isMobile, isOpen, onClose }: SidebarProps) {
         ))}
       </nav>
       
-      {/* Footer Info */}
-      <div className="p-6 text-center shrink-0">
-        <p className="text-[10px] text-white/30 font-medium">© {new Date().getFullYear()} {profile.stationName || 'Zamzam Fuel'}</p>
+      {/* Footer Info & Install App Shortcut */}
+      <div className="p-4 border-t border-white/10 shrink-0 flex flex-col gap-2">
+        <PWAInstallButton className="w-full justify-center !text-xs !py-2.5" />
+        <p className="text-[10px] text-white/40 text-center font-medium mt-1">© {new Date().getFullYear()} {profile.stationName || 'Zamzam Fuel'}</p>
       </div>
     </div>
   );
