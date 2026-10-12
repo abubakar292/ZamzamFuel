@@ -323,7 +323,7 @@ export default function FuelManagementPage() {
   if (loading) return null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20">
+    <div className="max-w-5xl mx-auto space-y-6 pb-36 lg:pb-24">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Daily Closing Entry</h2>
@@ -650,7 +650,67 @@ export default function FuelManagementPage() {
         </div>
       </div>
 
-      
+      {/* Inline Daily Sales Summary & Save Action */}
+      <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/90">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-md">
+                Today's Daily Sales
+              </span>
+              {(pSold > 0 || dSold > 0) && (
+                <span className="text-xs font-semibold text-slate-500">
+                  {formatLiters(pSold + dSold)} total volume sold
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Amount:</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums">
+                Rs. {formatAmount(subtotalAmount)}
+              </span>
+            </div>
+
+            {/* Petrol & Diesel quick pills */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+              <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200/80 text-amber-900 px-2.5 py-1 rounded-lg font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                <span>Petrol: <strong>{formatLiters(pSold)}</strong> (Rs. {formatAmount(pAmount)})</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200/80 text-blue-900 px-2.5 py-1 rounded-lg font-medium">
+                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+                <span>Diesel: <strong>{formatLiters(dSold)}</strong> (Rs. {formatAmount(dAmount)})</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-center md:items-end gap-2 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+            {isStockExceeded && (
+              <div className="flex items-center gap-1.5 text-danger bg-danger/10 px-3 py-1.5 rounded-xl text-xs font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Reading exceeds available tank stock!</span>
+              </div>
+            )}
+
+            <button
+              onClick={handleSave}
+              disabled={saving || pClosingNum <= pLastReading || dClosingNum <= dLastReading || isStockExceeded}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-primary text-white font-bold text-xs sm:text-sm hover:bg-primary-light transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm active:scale-95"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving...' : 'Save Changes'}</span>
+            </button>
+            
+            <p className="text-[10px] text-slate-400 text-center md:text-right">
+              {pClosingNum <= pLastReading || dClosingNum <= dLastReading
+                ? 'Enter closing readings higher than starting meter to save'
+                : 'Saves closing readings and updates tank stock'}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Recent Readings List */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 space-y-4">
         <div className="flex items-center justify-between">
@@ -1026,28 +1086,50 @@ export default function FuelManagementPage() {
       </AnimatePresence>
 
 
-      {/* Footer Subtotal */}
-      <div className="fixed bottom-0 left-0 right-0 lg:left-[260px] bg-white border-t border-slate-200 shadow-[0_-4px_24px_rgba(0,0,0,0.05)] p-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 z-10">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Total Daily Sales</p>
-          <p className="text-2xl font-extrabold text-slate-800">Rs. {formatAmount(subtotalAmount)}</p>
-        </div>
-
-        {isStockExceeded && (
-          <div className="flex items-center gap-2 text-danger bg-danger/10 px-4 py-2 rounded-xl text-xs font-bold">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>Cannot Save: Reading exceeds available tank stock!</span>
+      {/* Floating Bottom Quick-Save Bar (Docked above MobileBottomNav on mobile, at bottom on desktop) */}
+      <div className="fixed bottom-[60px] lg:bottom-0 left-0 right-0 lg:left-[260px] bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-3.5 py-2.5 sm:px-6 sm:py-2.5 z-20">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 leading-none">
+              Total Daily Sales
+            </p>
+            <div className="flex items-baseline gap-1.5 mt-0.5">
+              <span className="text-base sm:text-lg font-black text-slate-900 tabular-nums">
+                Rs. {formatAmount(subtotalAmount)}
+              </span>
+              {(pSold > 0 || dSold > 0) && (
+                <span className="hidden sm:inline-block text-[11px] font-medium text-slate-500">
+                  ({formatLiters(pSold + dSold)} total)
+                </span>
+              )}
+            </div>
           </div>
-        )}
-        
-        <button
-          onClick={handleSave}
-          disabled={saving || pClosingNum <= pLastReading || dClosingNum <= dLastReading || isStockExceeded}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-primary text-white font-bold hover:bg-primary-light transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
-        >
-          <Save className="w-5 h-5" />
-          {saving ? 'Saving...' : isStockExceeded ? 'Insufficient Stock (Cannot Save)' : 'Save Closing Entry'}
-        </button>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isStockExceeded && (
+              <div className="hidden sm:flex items-center gap-1 text-danger bg-danger/10 px-2.5 py-1 rounded-lg text-xs font-bold">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>Exceeds Stock!</span>
+              </div>
+            )}
+
+            <button
+              onClick={handleSave}
+              disabled={saving || pClosingNum <= pLastReading || dClosingNum <= dLastReading || isStockExceeded}
+              className="px-4 py-2 sm:px-5 sm:py-2 rounded-xl bg-primary text-white font-bold text-xs sm:text-sm hover:bg-primary-light transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shadow-sm active:scale-95"
+              title={
+                isStockExceeded 
+                  ? 'Reading exceeds available tank stock' 
+                  : (pClosingNum <= pLastReading || dClosingNum <= dLastReading)
+                    ? 'Enter closing readings higher than starting meter to save'
+                    : 'Save closing readings'
+              }
+            >
+              <Save className="w-4 h-4 shrink-0" />
+              <span>{saving ? 'Saving...' : isStockExceeded ? 'Exceeds Stock' : 'Save Changes'}</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
