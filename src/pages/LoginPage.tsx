@@ -21,6 +21,7 @@ import {
   AlertCircle, 
   CheckCircle2
 } from 'lucide-react';
+import { getStoredStationName } from '../utils/dynamicBrand';
 
 const errorMessages: Record<string, string> = {
   'auth/invalid-credential': 'Invalid email or password. Please try again.',
@@ -38,6 +39,7 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
+  const [stationName] = useState(() => getStoredStationName());
   const [searchParams] = useSearchParams();
   const urlMode = searchParams.get('mode');
   const [mode, setMode] = useState<'signin' | 'signup'>(
@@ -79,7 +81,7 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, cleanEmail, password);
-      showToast('Welcome back to ZAMZAM Fuel!', 'success');
+      showToast(`Welcome back to ${stationName || 'Fuel Station'}!`, 'success');
       navigate('/');
     } catch (error: any) {
       const code = error?.code || '';
@@ -204,7 +206,9 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
             >
               <Flame className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-wider">ZAMZAM</h1>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-wider uppercase truncate max-w-xs text-center">
+              {stationName || 'ZAMZAM'}
+            </h1>
             <p className="text-xs font-semibold text-accent tracking-widest uppercase mt-0.5">
               Fuel Management System
             </p>
@@ -477,7 +481,7 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
 
         {/* Footer info */}
         <p className="text-center text-white/60 text-xs mt-6">
-          ZAMZAM Fuel Management &bull; Secure Multi-Tenant Architecture
+          {stationName || 'ZAMZAM'} Fuel Management &bull; Secure Multi-Tenant Architecture
         </p>
       </motion.div>
     </div>

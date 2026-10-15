@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, Smartphone, X, CheckCircle, ExternalLink, Share2, PlusSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { getStoredStationName, getStoredStationIcon, generateStationIcon } from '../utils/dynamicBrand';
 
 export const PWAInstallButton: React.FC<{ className?: string; compact?: boolean }> = ({ 
   className = '', 
@@ -46,10 +47,12 @@ export const PWAInstallButton: React.FC<{ className?: string; compact?: boolean 
   );
 };
 
-export const PWAInstallBanner: React.FC = () => {
+export const PWAInstallPrompt: React.FC = () => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [dismissed, setDismissed] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [stationName, setStationName] = useState(() => getStoredStationName());
+  const [iconUrl, setIconUrl] = useState(() => getStoredStationIcon() || generateStationIcon(getStoredStationName(), 192));
 
   useEffect(() => {
     // Check if dismissed in this session
@@ -57,6 +60,18 @@ export const PWAInstallBanner: React.FC = () => {
     if (isDismissed) {
       setDismissed(true);
     }
+
+    const handleBrandChange = (e: any) => {
+      if (e.detail?.stationName) {
+        setStationName(e.detail.stationName);
+      }
+      if (e.detail?.iconUrl) {
+        setIconUrl(e.detail.iconUrl);
+      }
+    };
+
+    window.addEventListener('station_brand_changed', handleBrandChange);
+    return () => window.removeEventListener('station_brand_changed', handleBrandChange);
   }, []);
 
   const handleDismiss = () => {
@@ -92,15 +107,15 @@ export const PWAInstallBanner: React.FC = () => {
           <div className="bg-slate-900/95 backdrop-blur-md border border-amber-500/30 rounded-2xl p-4 shadow-2xl text-white flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-11 h-11 rounded-2xl bg-slate-900 border border-amber-500/40 shadow-md shrink-0 overflow-hidden">
-                <img src="/pwa-192x192.png" alt="Shortcut Icon" className="w-full h-full object-cover rounded-2xl" />
+                <img src={iconUrl || "/pwa-192x192.png"} alt="Shortcut Icon" className="w-full h-full object-cover rounded-2xl" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-black text-white truncate flex items-center gap-1.5">
-                  Install App Shortcut
+                  Install {stationName}
                   <span className="text-[10px] font-bold bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded uppercase">Fast</span>
                 </p>
                 <p className="text-[11px] text-slate-300 line-clamp-1">
-                  Add rounded shortcut icon to phone Home Screen
+                  Add custom {stationName} shortcut icon to phone screen
                 </p>
               </div>
             </div>
@@ -130,11 +145,25 @@ export const PWAInstallBanner: React.FC = () => {
   );
 };
 
+export const PWAInstallBanner = PWAInstallPrompt;
+
 export const PWAInstallModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   isIOS?: boolean;
 }> = ({ isOpen, onClose, isIOS = false }) => {
+  const [stationName, setStationName] = useState(() => getStoredStationName());
+  const [iconUrl, setIconUrl] = useState(() => getStoredStationIcon() || generateStationIcon(getStoredStationName(), 192));
+
+  useEffect(() => {
+    const handleBrandChange = (e: any) => {
+      if (e.detail?.stationName) setStationName(e.detail.stationName);
+      if (e.detail?.iconUrl) setIconUrl(e.detail.iconUrl);
+    };
+    window.addEventListener('station_brand_changed', handleBrandChange);
+    return () => window.removeEventListener('station_brand_changed', handleBrandChange);
+  }, []);
+
   if (!isOpen) return null;
 
   return (
@@ -150,7 +179,7 @@ export const PWAInstallModal: React.FC<{
               <Smartphone className="w-4 h-4 font-bold" />
             </div>
             <div>
-              <h3 className="font-extrabold text-sm sm:text-base leading-tight">Install App to Home Screen</h3>
+              <h3 className="font-extrabold text-sm sm:text-base leading-tight">Install {stationName} to Home Screen</h3>
               <p className="text-[11px] text-slate-300">Creates a direct shortcut icon on your phone</p>
             </div>
           </div>
@@ -167,12 +196,12 @@ export const PWAInstallModal: React.FC<{
           {/* Rounded Home Screen Icon Preview */}
           <div className="flex items-center gap-3.5 p-3.5 bg-gradient-to-r from-slate-50 to-amber-50/50 rounded-2xl border border-slate-200/80">
             <img 
-              src="/pwa-192x192.png" 
-              alt="Zamzam Fuel Shortcut Icon" 
+              src={iconUrl || "/pwa-192x192.png"} 
+              alt={`${stationName} Shortcut Icon`} 
               className="w-14 h-14 rounded-2xl shadow-md border border-amber-500/30 shrink-0 bg-slate-900 object-cover" 
             />
             <div className="min-w-0">
-              <h4 className="text-sm font-black text-slate-800 truncate">Zamzam Fuel Shortcut</h4>
+              <h4 className="text-sm font-black text-slate-800 truncate">{stationName} Shortcut</h4>
               <p className="text-[11px] text-slate-500">Official rounded app icon for your home screen</p>
               <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full mt-1">
                 ✓ Ready for 1-Tap Launch
@@ -246,7 +275,7 @@ export const PWAInstallModal: React.FC<{
                     Select "Install App" or "Add to Home screen"
                   </p>
                   <p className="text-[11px] text-slate-600 mt-0.5">
-                    Confirm by tapping <strong>Install</strong>. The Zamzam Fuel shortcut icon will appear instantly on your device screen!
+                    Confirm by tapping <strong>Install</strong>. The {stationName} shortcut icon will appear instantly on your device screen!
                   </p>
                 </div>
               </div>

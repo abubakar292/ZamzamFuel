@@ -9,6 +9,7 @@ import { getMillis, recalculateDatabase } from '../utils/recalculate';
 import { FileText, Download, Filter, Droplets, Fuel } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useStationProfile } from '../hooks/useStationProfile';
 
 type ReportRow = {
   date: string;
@@ -20,6 +21,7 @@ type ReportRow = {
 };
 
 export default function ReportPage() {
+  const { profile } = useStationProfile();
   const [reportType, setReportType] = useState<'All' | 'Petrol' | 'Diesel'>('All');
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
@@ -203,7 +205,7 @@ export default function ReportPage() {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
-    doc.text('FUEL STATION SALES REPORT', 105, 12, { align: 'center' });
+    doc.text(`${profile.stationName?.toUpperCase() || 'FUEL STATION'} - SALES REPORT`, 105, 12, { align: 'center' });
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.text(`Period: ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)} | Type: ${reportType}`, 105, 20, { align: 'center' });

@@ -1,7 +1,28 @@
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame } from 'lucide-react';
+import { getStoredStationName } from '../utils/dynamicBrand';
 
-export default function AppLoader({ loading }: { loading: boolean }) {
+export default function AppLoader({ loading, stationName }: { loading: boolean; stationName?: string }) {
+  const [currentName, setCurrentName] = useState(() => {
+    return (stationName || getStoredStationName() || 'ZAMZAM').trim();
+  });
+
+  useEffect(() => {
+    if (stationName) {
+      setCurrentName(stationName.trim());
+    }
+
+    const handleBrandChange = (e: any) => {
+      if (e.detail?.stationName) {
+        setCurrentName(e.detail.stationName.trim());
+      }
+    };
+
+    window.addEventListener('station_brand_changed', handleBrandChange);
+    return () => window.removeEventListener('station_brand_changed', handleBrandChange);
+  }, [stationName]);
+
   return (
     <AnimatePresence>
       {loading && (
@@ -9,7 +30,7 @@ export default function AppLoader({ loading }: { loading: boolean }) {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.05 }}
           transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center"
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4"
           style={{ background: 'linear-gradient(135deg, #1A3C6E 0%, #0F2548 100%)' }}
         >
           {/* Animated background orbs */}
@@ -57,11 +78,17 @@ export default function AppLoader({ loading }: { loading: boolean }) {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-            className="text-center mb-10 z-10"
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="text-center mb-10 z-10 max-w-sm px-4"
           >
-            <h1 className="text-3xl font-extrabold text-white tracking-widest mb-1">ZAMZAM</h1>
-            <p className="text-sm font-medium tracking-[0.4em] text-amber-400">FUEL MANAGEMENT</p>
+            <h1 className={`font-black text-white tracking-widest mb-1 uppercase truncate ${
+              currentName.length > 20 ? 'text-xl' : currentName.length > 12 ? 'text-2xl' : 'text-3xl sm:text-4xl'
+            }`}>
+              {currentName}
+            </h1>
+            <p className="text-xs sm:text-sm font-bold tracking-[0.35em] text-amber-400">
+              FUEL MANAGEMENT
+            </p>
           </motion.div>
 
           {/* Pulsing dots */}

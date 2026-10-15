@@ -3,6 +3,7 @@ import { onSnapshot, setDoc } from 'firebase/firestore';
 import { getUserDoc } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { StationProfile } from '../types';
+import { updateAppBrand, getStoredStationName } from '../utils/dynamicBrand';
 
 const defaultProfile: StationProfile = {
   stationName: 'ZAMZAM',
@@ -14,21 +15,35 @@ const defaultProfile: StationProfile = {
 
 export function useStationProfile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<StationProfile>(defaultProfile);
+  const [profile, setProfile] = useState<StationProfile>(() => {
+    const cached = getStoredStationName();
+    return { ...defaultProfile, stationName: cached || 'ZAMZAM' };
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) {
-      setProfile(defaultProfile);
+      const cached = getStoredStationName();
+      setProfile({ ...defaultProfile, stationName: cached || 'ZAMZAM' });
       setLoading(false);
       return;
     }
 
     const unsub = onSnapshot(getUserDoc('appSettings', 'profile'), (doc) => {
       if (doc.exists()) {
-        setProfile({ ...defaultProfile, ...doc.data() });
+        const data = doc.data() as Partial<StationProfile>;
+        const merged: StationProfile = {
+          ...defaultProfile,
+          ...data,
+          stationName: data.stationName || getStoredStationName() || 'ZAMZAM'
+        };
+        setProfile(merged);
+        if (merged.stationName) {
+          updateAppBrand(merged.stationName);
+        }
       } else {
-        setProfile(defaultProfile);
+        const cached = getStoredStationName();
+        setProfile({ ...defaultProfile, stationName: cached || 'ZAMZAM' });
       }
       setLoading(false);
     });
@@ -38,7 +53,15 @@ export function useStationProfile() {
 
   const updateProfile = async (newProfile: StationProfile) => {
     if (!user) return;
-    await setDoc(getUserDoc('appSettings', 'profile'), newProfile, { merge: true });
+    const nameToSet = newProfile.stationName?.trim() || 'ZAMZAM';
+    const updated = { ...newProfile, stationName: nameToSet };
+    
+    // Immediate UI and dynamic branding update
+    setProfile(updated);
+    updateAppBrand(nameToSet);
+
+    // Save to Firestore
+    await setDoc(getUserDoc('appSettings', 'profile'), updated, { merge: true });
   };
 
   return { profile, updateProfile, loading };

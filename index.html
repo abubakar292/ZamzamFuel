@@ -18,6 +18,30 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var name = localStorage.getItem('station_name');
+          if (name && name.trim()) {
+            document.title = name.trim() + ' Fuel Management';
+            var metaApple = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+            if (metaApple) metaApple.setAttribute('content', name.trim());
+            var ogTitle = document.querySelector('meta[property="og:title"]');
+            if (ogTitle) ogTitle.setAttribute('content', name.trim() + ' Fuel Management');
+            var iconUrl = localStorage.getItem('station_icon_url');
+            var icon512Url = localStorage.getItem('station_icon_512_url');
+            if (iconUrl) {
+              var favicons = document.querySelectorAll('link[rel*="icon"]');
+              favicons.forEach(function(l) { l.href = iconUrl; });
+            }
+            if (icon512Url) {
+              var appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+              if (appleIcon) appleIcon.href = icon512Url;
+            }
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body class="bg-surface-3 text-slate-800 antialiased selection:bg-primary/20 select-none sm:select-auto">
     <div id="root"></div>
