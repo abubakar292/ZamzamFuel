@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { doc, getDoc, collection, onSnapshot, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { onSnapshot, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { getUserCollection, getUserDoc } from '../lib/firebase';
 import { Vendor, Purchase, VendorPayment } from '../types';
 import { useToast } from '../components/Toast';
 import { formatAmount } from '../utils/calculations';
 import { parseDateInput, getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
-import { recalculateVendor } from '../utils/recalculate';
-import { ArrowLeft, CreditCard, ArrowDownRight, ArrowUpRight, Plus, X, Trash2 } from 'lucide-react';
+import { recalculateVendor, getMillis } from '../utils/recalculate';
+import { ArrowLeft, CreditCard, ArrowDownRight, ArrowUpRight, Plus, X, Trash2, Fuel } from 'lucide-react';
 
 type LedgerItem = {
   id: string;
@@ -26,8 +26,8 @@ export default function VendorDetailPage() {
   const { showToast } = useToast();
   
   const [vendor, setVendor] = useState<Vendor | null>(null);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [payments, setPayments] = useState<VendorPayment[]>([]);
+  const [rawPurchases, setRawPurchases] = useState<Purchase[]>([]);
+  const [rawPayments, setRawPayments] = useState<VendorPayment[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Pay Modal
@@ -39,11 +39,15 @@ export default function VendorDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    
+
+    // Recalculate vendor on mount to guarantee fresh numbers
+    recalculateVendor(id).catch(err => console.error('Failed to sync vendor on mount:', err));
+
     // Vendor listener
     const unsubVendor = onSnapshot(getUserDoc('vendors', id), (docSnap) => {
       if (docSnap.exists()) {
-        setVendor({ id: docSnap.id, ...docSnap.data() } as Vendor);
+        const vData = { id: docSnap.id, ...docSnap.data() } as Vendor;
+        setVendor(vData);
       } else {
         showToast('Vendor not found', 'error');
         navigate('/vendors');
@@ -51,15 +55,13 @@ export default function VendorDetailPage() {
     });
 
     // Purchases listener
-    const qPurchases = query(getUserCollection('purchases'), where('vendorId', '==', id));
-    const unsubPurchases = onSnapshot(qPurchases, (snapshot) => {
-      setPurchases(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Purchase)));
+    const unsubPurchases = onSnapshot(getUserCollection('purchases'), (snapshot) => {
+      setRawPurchases(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Purchase)));
     });
 
     // Payments listener
-    const qPayments = query(getUserCollection('vendorPayments'), where('vendorId', '==', id));
-    const unsubPayments = onSnapshot(qPayments, (snapshot) => {
-      setPayments(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as VendorPayment)));
+    const unsubPayments = onSnapshot(getUserCollection('vendorPayments'), (snapshot) => {
+      setRawPayments(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as VendorPayment)));
       setLoading(false);
     });
 
@@ -70,25 +72,109 @@ export default function VendorDetailPage() {
     };
   }, [id, navigate, showToast]);
 
+  // Reactive matching by ID or Name
+  const purchases = useMemo(() => {
+    if (!id) return [];
+    const vName = (vendor?.name || '').trim().toLowerCase();
+    return rawPurchases.filter(p => {
+      const pVendorId = (p as any).vendorId || (p as any).vendor_id;
+      const pVendorName = ((p as any).vendorName || (p as any).vendor || '').trim().toLowerCase();
+      return pVendorId === id || (vName && pVendorName && pVendorName === vName);
+    });
+  }, [rawPurchases, id, vendor]);
+
+  const payments = useMemo(() => {
+    if (!id) return [];
+    const vName = (vendor?.name || '').trim().toLowerCase();
+    return rawPayments.filter(p => {
+      const pVendorId = (p as any).vendorId || (p as any).vendor_id;
+      const pVendorName = ((p as any).vendorName || (p as any).vendor || '').trim().toLowerCase();
+      return pVendorId === id || (vName && pVendorName && pVendorName === vName);
+    });
+  }, [rawPayments, id, vendor]);
+
+  // Compute real-time totals from transactions to guarantee 100% accuracy
+  const liveTotalPurchases = useMemo(() => {
+    return purchases.reduce((acc, p) => acc + (Number(p.total ?? p.netSubtotal) || 0), 0);
+  }, [purchases]);
+
+  const liveTotalPaid = useMemo(() => {
+    const fromPurchases = purchases.reduce((acc, p) => {
+      const pTotal = Number(p.total ?? p.netSubtotal) || 0;
+      const pType = (p.paymentType || '').toString().toLowerCase();
+      const isCredit = pType.includes('credit');
+
+      if (isCredit) {
+        // CREDIT: Check if there was an actual partial down payment strictly less than pTotal
+        const storedRem = Number(p.remainingBalance);
+        const storedPaid = Number(p.amountPaid);
+        if (!isNaN(storedRem) && storedRem > 0 && storedRem < pTotal) {
+          return acc + Math.max(0, pTotal - storedRem);
+        } else if (!isNaN(storedPaid) && storedPaid > 0 && storedPaid < pTotal) {
+          return acc + storedPaid;
+        }
+        return acc; // 100% full credit -> 0 paid down
+      } else {
+        // CASH:
+        if (p.amountPaid !== undefined && p.amountPaid !== null && p.amountPaid !== '') {
+          return acc + (Number(p.amountPaid) || 0);
+        }
+        return acc + pTotal;
+      }
+    }, 0);
+    const fromPayments = payments.reduce((acc, pay) => acc + (Number(pay.amount) || 0), 0);
+    return fromPurchases + fromPayments;
+  }, [purchases, payments]);
+
+  const liveVendorQarz = Math.max(0, liveTotalPurchases - liveTotalPaid);
+
   const ledgerItems = useMemo(() => {
     const items: LedgerItem[] = [];
     
     purchases.forEach(p => {
+      const pTotal = Number(p.total ?? p.netSubtotal) || 0;
+      const pType = (p.paymentType || '').toString().toLowerCase();
+      const isCredit = pType.includes('credit');
+      
+      let pPaid = 0;
+      if (isCredit) {
+        const storedRem = Number(p.remainingBalance);
+        const storedPaid = Number(p.amountPaid);
+        if (!isNaN(storedRem) && storedRem > 0 && storedRem < pTotal) {
+          pPaid = Math.max(0, pTotal - storedRem);
+        } else if (!isNaN(storedPaid) && storedPaid > 0 && storedPaid < pTotal) {
+          pPaid = storedPaid;
+        } else {
+          pPaid = 0;
+        }
+      } else {
+        if (p.amountPaid !== undefined && p.amountPaid !== null && p.amountPaid !== '') {
+          pPaid = Number(p.amountPaid) || 0;
+        } else {
+          pPaid = pTotal;
+        }
+      }
+
       items.push({
         id: `pur_${p.id}`,
+        originalId: p.id,
         type: 'purchase',
-        date: p.purchaseDate,
-        amount: p.total,
-        label: `Purchase INV-${p.invoiceNumber.toString().padStart(3, '0')}`
+        date: p.purchaseDate || p.createdAt,
+        amount: pTotal,
+        label: `Purchase INV-${(p.invoiceNumber ?? 0).toString().padStart(3, '0')} (${isCredit ? 'Credit' : 'Cash'})`
       });
-      // Also add initial payment if any
-      if (p.amountPaid > 0) {
+
+      // Only add initial payment entry if an actual partial down payment was made
+      if (pPaid > 0) {
         items.push({
           id: `pur_pay_${p.id}`,
+          originalId: p.id,
           type: 'payment',
-          date: p.purchaseDate,
-          amount: p.amountPaid,
-          label: `Down payment for INV-${p.invoiceNumber.toString().padStart(3, '0')}`
+          date: p.purchaseDate || p.createdAt,
+          amount: pPaid,
+          label: isCredit 
+            ? `Partial advance for INV-${(p.invoiceNumber ?? 0).toString().padStart(3, '0')}`
+            : `Cash payment for INV-${(p.invoiceNumber ?? 0).toString().padStart(3, '0')}`
         });
       }
     });
@@ -98,17 +184,15 @@ export default function VendorDetailPage() {
         id: `pay_${p.id}`,
         originalId: p.id,
         type: 'payment',
-        date: p.paymentDate,
-        amount: p.amount,
-        label: p.notes || 'Payment made'
+        date: p.paymentDate || p.createdAt,
+        amount: Number(p.amount) || 0,
+        label: p.notes ? `Payment: ${p.notes}` : 'Payment made'
       });
     });
 
-    // Sort oldest first to calculate running balance
+    // Sort oldest first using getMillis to correctly compute running balance
     items.sort((a, b) => {
-      const timeA = a.date?.toMillis ? a.date.toMillis() : 0;
-      const timeB = b.date?.toMillis ? b.date.toMillis() : 0;
-      return timeA - timeB;
+      return getMillis(a.date) - getMillis(b.date);
     });
 
     let balance = 0;
@@ -179,37 +263,47 @@ export default function VendorDetailPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link to="/vendors" className="p-2 bg-white rounded-xl shadow-sm text-slate-500 hover:text-primary transition-colors">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">{vendor.name}</h2>
-          <p className="text-sm text-slate-500">{vendor.phone || 'No phone'}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link to="/vendors" className="p-2 bg-white rounded-xl shadow-sm text-slate-500 hover:text-primary transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800">{vendor.name}</h2>
+            <p className="text-sm text-slate-500">{vendor.phone || 'No phone'}</p>
+          </div>
         </div>
+
+        <Link
+          to="/purchases"
+          className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 text-slate-700 hover:text-primary rounded-xl text-xs sm:text-sm font-semibold transition-colors shadow-sm"
+        >
+          <Fuel className="w-4 h-4 text-primary" />
+          <span>New Fuel Purchase</span>
+        </Link>
       </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-card border border-slate-100 min-w-0" title={`Rs. ${formatAmount(vendor.totalPurchases)}`}>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-card border border-slate-100 min-w-0" title={`Rs. ${formatAmount(liveTotalPurchases)}`}>
           <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 truncate">Total Purchases</p>
-          <p className="text-lg sm:text-xl font-black text-slate-800 tabular-nums truncate">Rs. {formatAmount(vendor.totalPurchases)}</p>
+          <p className="text-lg sm:text-xl font-black text-slate-800 tabular-nums truncate">Rs. {formatAmount(liveTotalPurchases)}</p>
         </div>
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-card border border-slate-100 min-w-0" title={`Rs. ${formatAmount(vendor.totalPaid)}`}>
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-card border border-slate-100 min-w-0" title={`Rs. ${formatAmount(liveTotalPaid)}`}>
           <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1 truncate">Total Paid</p>
-          <p className="text-lg sm:text-xl font-black text-success tabular-nums truncate">Rs. {formatAmount(vendor.totalPaid)}</p>
+          <p className="text-lg sm:text-xl font-black text-success tabular-nums truncate">Rs. {formatAmount(liveTotalPaid)}</p>
         </div>
-        <div className={`p-4 sm:p-5 rounded-2xl shadow-card border min-w-0 ${vendor.vendorQarz > 0 ? 'bg-danger-bg border-danger/20' : 'bg-success-bg border-success/20'}`} title={`Rs. ${formatAmount(vendor.vendorQarz)}`}>
+        <div className={`p-4 sm:p-5 rounded-2xl shadow-card border min-w-0 ${liveVendorQarz > 0 ? 'bg-danger-bg border-danger/20' : 'bg-success-bg border-success/20'}`} title={`Rs. ${formatAmount(liveVendorQarz)}`}>
           <div className="flex justify-between items-start gap-2">
             <div className="min-w-0">
-              <p className={`text-[10px] uppercase tracking-wider font-bold mb-1 truncate ${vendor.vendorQarz > 0 ? 'text-danger/70' : 'text-success/70'}`}>
+              <p className={`text-[10px] uppercase tracking-wider font-bold mb-1 truncate ${liveVendorQarz > 0 ? 'text-danger/70' : 'text-success/70'}`}>
                 Balance (Qarz)
               </p>
-              <p className={`text-lg sm:text-xl font-black tabular-nums truncate ${vendor.vendorQarz > 0 ? 'text-danger' : 'text-success'}`}>
-                Rs. {formatAmount(vendor.vendorQarz)}
+              <p className={`text-lg sm:text-xl font-black tabular-nums truncate ${liveVendorQarz > 0 ? 'text-danger' : 'text-success'}`}>
+                {liveVendorQarz > 0 ? `Rs. ${formatAmount(liveVendorQarz)}` : 'Cleared ✓'}
               </p>
             </div>
-            {vendor.vendorQarz > 0 && (
+            {liveVendorQarz > 0 && (
               <button 
                 onClick={() => setIsPayOpen(true)}
                 className="bg-danger text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold hover:bg-danger/90 transition-colors shadow-sm shrink-0"
@@ -223,8 +317,20 @@ export default function VendorDetailPage() {
 
       {/* Ledger */}
       <div className="bg-white rounded-2xl shadow-card overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-800">Transaction History</h3>
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-slate-800">Vendor Ledger / Transaction History</h3>
+            <p className="text-xs text-slate-400">All credit purchases, down payments, and repayments</p>
+          </div>
+          {liveVendorQarz > 0 && (
+            <button
+              onClick={() => setIsPayOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary-light transition-colors shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Record Payment</span>
+            </button>
+          )}
         </div>
         <div className="divide-y divide-slate-100">
           {ledgerItems.length === 0 ? (
@@ -252,7 +358,7 @@ export default function VendorDetailPage() {
                     </p>
                     <p className="text-[11px] text-slate-500 font-semibold tabular-nums">Bal: Rs. {formatAmount(item.runningBalance || 0)}</p>
                   </div>
-                  {item.type === 'payment' && item.originalId && (
+                  {item.type === 'payment' && item.originalId && !item.id.startsWith('pur_pay_') && (
                     <button
                       onClick={() => item.originalId && handleDeletePayment(item.originalId)}
                       className="p-1.5 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
@@ -283,42 +389,66 @@ export default function VendorDetailPage() {
                 className="bg-white rounded-2xl shadow-card-lg w-full max-w-sm pointer-events-auto overflow-hidden"
               >
                 <div className="flex items-center justify-between p-4 border-b border-slate-100">
-                  <h3 className="text-lg font-bold text-slate-800">Record Payment</h3>
-                  <button onClick={() => setIsPayOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
-                    <X className="w-5 h-5" />
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-primary" />
+                    <h3 className="font-bold text-slate-800">Pay Vendor (Repayment)</h3>
+                  </div>
+                  <button onClick={() => setIsPayOpen(false)} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400">
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
                 
-                <form onSubmit={handlePayment} className="p-6 space-y-4">
+                <form onSubmit={handlePayment} className="p-4 space-y-4">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs">
+                    <p className="text-slate-500 font-medium">Current Payable Qarz:</p>
+                    <p className="text-base font-black text-danger tabular-nums mt-0.5">Rs. {formatAmount(liveVendorQarz)}</p>
+                  </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Amount (Rs.) *</label>
-                    <input type="number" step="0.01" required value={payAmount} onChange={e => setPayAmount(e.target.value)}
-                      max={vendor.vendorQarz}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-success/20 focus:border-success transition-all"
-                      placeholder={`Max: ${vendor.vendorQarz}`}
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Payment Amount (Rs.) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={payAmount}
+                      onChange={e => setPayAmount(e.target.value)}
+                      max={liveVendorQarz}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-bold tabular-nums focus:ring-2 focus:ring-primary/20"
+                      placeholder={`Max: ${liveVendorQarz}`}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Date</label>
-                    <input type="date" required value={payDate} onChange={e => setPayDate(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-success/20 focus:border-success transition-all"
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Payment Date *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={payDate}
+                      onChange={e => setPayDate(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes (Optional)</label>
-                    <input type="text" value={payNotes} onChange={e => setPayNotes(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-success/20 focus:border-success transition-all"
-                      placeholder="e.g. Bank transfer, Cash"
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Notes / Reference (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={payNotes}
+                      onChange={e => setPayNotes(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20"
+                      placeholder="e.g. Bank transfer, Cash by Ali"
                     />
                   </div>
-                  
                   <div className="pt-2">
-                    <button type="submit" disabled={paying}
-                      className="w-full py-3 rounded-xl bg-success text-white font-medium hover:bg-success-dark focus:ring-2 focus:ring-success/50 transition-all disabled:opacity-70 flex items-center justify-center gap-2 shadow-sm"
+                    <button
+                      type="submit"
+                      disabled={paying}
+                      className="w-full py-2.5 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary-light transition-colors disabled:opacity-50"
                     >
-                      <CreditCard className="w-4 h-4" />
-                      {paying ? 'Recording...' : 'Record Payment'}
+                      {paying ? 'Recording...' : 'Confirm Repayment'}
                     </button>
                   </div>
                 </form>

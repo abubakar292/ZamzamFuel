@@ -341,8 +341,36 @@ export async function recalculateAllVendors() {
         const matches = dVendorId === vId || (vName && dVendorName && dVendorName === vName);
 
         if (matches) {
-          totalPurchases += (Number(data.total ?? data.netSubtotal) || 0);
-          totalPaidFromPurchases += (Number(data.amountPaid) || 0);
+          const pTotal = Number(data.total ?? data.netSubtotal) || 0;
+          totalPurchases += pTotal;
+
+          const pType = (data.paymentType || '').toString().toLowerCase();
+          const isCredit = pType.includes('credit');
+
+          let pPaid = 0;
+          if (isCredit) {
+            // CREDIT PURCHASE (Udhaar):
+            // By definition, a credit purchase adds debt to the vendor.
+            // Check if there was an actual partial down payment strictly less than pTotal
+            const storedRem = Number(data.remainingBalance);
+            const storedPaid = Number(data.amountPaid);
+            if (!isNaN(storedRem) && storedRem > 0 && storedRem < pTotal) {
+              pPaid = Math.max(0, pTotal - storedRem);
+            } else if (!isNaN(storedPaid) && storedPaid > 0 && storedPaid < pTotal) {
+              pPaid = storedPaid;
+            } else {
+              // 100% full credit: no down payment made at purchase time
+              pPaid = 0;
+            }
+          } else {
+            // CASH PURCHASE:
+            if (data.amountPaid !== undefined && data.amountPaid !== null && data.amountPaid !== '') {
+              pPaid = Number(data.amountPaid) || 0;
+            } else {
+              pPaid = pTotal;
+            }
+          }
+          totalPaidFromPurchases += pPaid;
         }
       });
 
@@ -388,8 +416,33 @@ export async function recalculateVendor(vendorId: string) {
       const matches = dVendorId === vendorId || (vName && dVendorName && dVendorName === vName);
 
       if (matches) {
-        totalPurchases += (Number(data.total ?? data.netSubtotal) || 0);
-        totalPaidFromPurchases += (Number(data.amountPaid) || 0);
+        const pTotal = Number(data.total ?? data.netSubtotal) || 0;
+        totalPurchases += pTotal;
+
+        const pType = (data.paymentType || '').toString().toLowerCase();
+        const isCredit = pType.includes('credit');
+
+        let pPaid = 0;
+        if (isCredit) {
+          // CREDIT PURCHASE (Udhaar):
+          const storedRem = Number(data.remainingBalance);
+          const storedPaid = Number(data.amountPaid);
+          if (!isNaN(storedRem) && storedRem > 0 && storedRem < pTotal) {
+            pPaid = Math.max(0, pTotal - storedRem);
+          } else if (!isNaN(storedPaid) && storedPaid > 0 && storedPaid < pTotal) {
+            pPaid = storedPaid;
+          } else {
+            pPaid = 0;
+          }
+        } else {
+          // CASH PURCHASE:
+          if (data.amountPaid !== undefined && data.amountPaid !== null && data.amountPaid !== '') {
+            pPaid = Number(data.amountPaid) || 0;
+          } else {
+            pPaid = pTotal;
+          }
+        }
+        totalPaidFromPurchases += pPaid;
       }
     });
 

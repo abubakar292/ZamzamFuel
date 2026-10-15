@@ -27,6 +27,7 @@ export default function PurchasesPage() {
   const [editPurchaseDate, setEditPurchaseDate] = useState('');
   const [editItems, setEditItems] = useState<PurchaseItem[]>([]);
   const [editAmountPaid, setEditAmountPaid] = useState('');
+  const [editHasAdvance, setEditHasAdvance] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   
   // New Purchase Form
@@ -34,6 +35,7 @@ export default function PurchasesPage() {
   const [paymentType, setPaymentType] = useState<'Cash' | 'Credit'>('Credit');
   const [purchaseDate, setPurchaseDate] = useState(() => getTodayDateString());
   const [items, setItems] = useState<PurchaseItem[]>([{ fuelType: 'petrol', quantity: 0, unitCost: 0, subtotal: 0 }]);
+  const [hasAdvance, setHasAdvance] = useState(false);
   const [amountPaid, setAmountPaid] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -103,7 +105,18 @@ export default function PurchasesPage() {
 
   const netSubtotal = items.reduce((acc, item) => acc + item.subtotal, 0);
   const total = netSubtotal;
-  const paid = paymentType === 'Cash' && (!amountPaid || amountPaid === '') ? total : (parseFloat(amountPaid) || 0);
+  let paid = 0;
+  if (paymentType === 'Cash') {
+    paid = (!amountPaid || amountPaid === '') ? total : (parseFloat(amountPaid) || 0);
+  } else {
+    // Credit purchase: 100% full credit unless partial advance is explicitly enabled
+    const entered = parseFloat(amountPaid) || 0;
+    if (!hasAdvance || entered <= 0 || entered >= total) {
+      paid = 0;
+    } else {
+      paid = entered;
+    }
+  }
   const remainingBalance = Math.max(0, total - paid);
 
   const handleSave = async () => {
@@ -197,6 +210,7 @@ export default function PurchasesPage() {
       // Reset form
       setVendorId('');
       setItems([{ fuelType: 'petrol', quantity: 0, unitCost: 0, subtotal: 0 }]);
+      setHasAdvance(false);
       setAmountPaid('');
       
     } catch (error) {
@@ -255,7 +269,22 @@ export default function PurchasesPage() {
     } else {
       setEditItems([{ fuelType: 'petrol', quantity: 0, unitCost: 0, subtotal: 0 }]);
     }
-    setEditAmountPaid(p.amountPaid !== undefined && p.amountPaid !== null ? p.amountPaid.toString() : '');
+    if (p.paymentType === 'Cash') {
+      setEditHasAdvance(false);
+      setEditAmountPaid(p.amountPaid !== undefined && p.amountPaid !== null ? p.amountPaid.toString() : '');
+    } else {
+      // Credit: check if there was a real partial advance strictly less than pTot
+      const pTot = Number(p.total ?? p.netSubtotal) || 0;
+      let downPay = 0;
+      if (p.remainingBalance !== undefined && p.remainingBalance !== null && pTot > 0 && Number(p.remainingBalance) < pTot) {
+        downPay = Math.max(0, pTot - Number(p.remainingBalance));
+      } else if (p.amountPaid !== undefined && p.amountPaid !== null && Number(p.amountPaid) < pTot) {
+        downPay = Number(p.amountPaid) || 0;
+      }
+      const hasRealAdvance = downPay > 0 && downPay < pTot;
+      setEditHasAdvance(hasRealAdvance);
+      setEditAmountPaid(hasRealAdvance ? downPay.toString() : '');
+    }
   };
 
   const handleAddEditItem = () => {
@@ -288,9 +317,17 @@ export default function PurchasesPage() {
   };
 
   const editTotal = editItems.reduce((acc, item) => acc + (Number(item.subtotal) || 0), 0);
-  const editPaid = editPaymentType === 'Cash' && (!editAmountPaid || editAmountPaid === '') 
-    ? editTotal 
-    : (parseFloat(editAmountPaid) || 0);
+  let editPaid = 0;
+  if (editPaymentType === 'Cash') {
+    editPaid = (!editAmountPaid || editAmountPaid === '') ? editTotal : (parseFloat(editAmountPaid) || 0);
+  } else {
+    const entered = parseFloat(editAmountPaid) || 0;
+    if (!editHasAdvance || entered <= 0 || entered >= editTotal) {
+      editPaid = 0;
+    } else {
+      editPaid = entered;
+    }
+  }
   const editRemainingBalance = Math.max(0, editTotal - editPaid);
 
   const handleSaveEditPurchase = async () => {
@@ -321,9 +358,18 @@ export default function PurchasesPage() {
       });
 
       const finalTotal = formattedItems.reduce((acc, item) => acc + item.subtotal, 0);
-      const finalPaid = editPaymentType === 'Cash' && (!editAmountPaid || editAmountPaid === '') 
-        ? finalTotal 
-        : (parseFloat(editAmountPaid) || 0);
+      const isCredit = editPaymentType === 'Credit';
+      let finalPaid = 0;
+      if (!isCredit) {
+        finalPaid = (!editAmountPaid || editAmountPaid === '') ? finalTotal : (parseFloat(editAmountPaid) || 0);
+      } else {
+        const entered = parseFloat(editAmountPaid) || 0;
+        if (!editHasAdvance || entered <= 0 || entered >= finalTotal) {
+          finalPaid = 0;
+        } else {
+          finalPaid = entered;
+        }
+      }
       const finalRemaining = Math.max(0, finalTotal - finalPaid);
 
       const pItem = formattedItems.find(i => i.fuelType === 'petrol');
@@ -423,8 +469,20 @@ export default function PurchasesPage() {
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Payment Type</label>
                     <div className="flex bg-slate-100 rounded-xl p-1">
-                      <button onClick={() => setPaymentType('Cash')} className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-all ${paymentType === 'Cash' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}>Cash</button>
-                      <button onClick={() => setPaymentType('Credit')} className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-all ${paymentType === 'Credit' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}>Credit</button>
+                      <button 
+                        type="button" 
+                        onClick={() => { setPaymentType('Cash'); setAmountPaid(''); }} 
+                        className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-all ${paymentType === 'Cash' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}
+                      >
+                        Cash
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => { setPaymentType('Credit'); setAmountPaid(''); }} 
+                        className={`flex-1 py-1.5 rounded-lg text-sm font-bold transition-all ${paymentType === 'Credit' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500'}`}
+                      >
+                        Credit
+                      </button>
                     </div>
                   </div>
                   <div>
@@ -510,15 +568,63 @@ export default function PurchasesPage() {
                       <span>Total</span>
                       <span className="tabular-nums">Rs. {formatAmount(total)}</span>
                     </div>
-                    <div className="flex justify-between items-center gap-2">
-                      <label className="text-sm font-bold text-slate-600 shrink-0">Amount Paid</label>
-                      <input type="number" min="0" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
-                        className="w-36 sm:w-44 px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 focus:border-primary tabular-nums"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="flex justify-between items-center gap-2 pt-2">
-                      <span className="text-sm font-bold text-slate-600 shrink-0">Remaining Balance</span>
+                    {paymentType === 'Cash' ? (
+                      <div className="flex justify-between items-center gap-2">
+                        <div>
+                          <label className="text-sm font-bold text-slate-600 block">Cash Paid</label>
+                          <span className="text-[11px] text-slate-400">Paid from cash drawer</span>
+                        </div>
+                        <input type="number" min="0" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
+                          className="w-36 sm:w-44 px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 focus:border-primary tabular-nums"
+                          placeholder={total.toString()}
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/80 space-y-2.5">
+                        <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
+                          <span>Terms:</span>
+                          <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[11px] font-black uppercase tracking-wider">
+                            100% Credit (Udhaar)
+                          </span>
+                        </div>
+                        <p className="text-xs text-emerald-700 leading-relaxed">
+                          Full amount of <strong className="tabular-nums">Rs. {formatAmount(remainingBalance)}</strong> will be added to <strong className="capitalize">{vendors.find(v => v.id === vendorId)?.name || 'the vendor'}</strong>'s payable ledger (Qarz).
+                        </p>
+
+                        <label className="flex items-center gap-2 pt-2 border-t border-emerald-200/60 cursor-pointer select-none">
+                          <input 
+                            type="checkbox" 
+                            checked={hasAdvance} 
+                            onChange={e => {
+                              setHasAdvance(e.target.checked);
+                              if (!e.target.checked) setAmountPaid('');
+                            }}
+                            className="w-4 h-4 rounded text-primary focus:ring-primary/20 cursor-pointer"
+                          />
+                          <span className="text-xs font-bold text-slate-700">Did you make a partial cash advance payment?</span>
+                        </label>
+
+                        {hasAdvance && (
+                          <div className="pt-1 flex items-center justify-between gap-3">
+                            <span className="text-xs font-bold text-slate-600">Advance Paid Now (Rs.):</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={total > 0 ? total - 1 : 0}
+                              step="0.01"
+                              value={amountPaid}
+                              onChange={e => setAmountPaid(e.target.value)}
+                              placeholder="0.00"
+                              className="w-36 px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 tabular-nums"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center gap-2 pt-2 border-t border-slate-200">
+                      <span className="text-sm font-bold text-slate-600 shrink-0">
+                        {paymentType === 'Credit' ? 'Balance Added to Vendor Qarz' : 'Remaining Balance'}
+                      </span>
                       <span className={`text-base sm:text-lg font-extrabold tabular-nums truncate text-right ${remainingBalance > 0 ? 'text-danger' : 'text-success'}`}>
                         Rs. {formatAmount(remainingBalance)}
                       </span>
@@ -762,33 +868,81 @@ export default function PurchasesPage() {
                       <div className="flex bg-slate-200/80 p-1 rounded-xl">
                         <button
                           type="button"
-                          onClick={() => setEditPaymentType('Cash')}
+                          onClick={() => { setEditPaymentType('Cash'); setEditAmountPaid(''); }}
                           className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${editPaymentType === 'Cash' ? 'bg-white shadow text-slate-900' : 'text-slate-600'}`}
                         >
                           Cash (Full Payment)
                         </button>
                         <button
                           type="button"
-                          onClick={() => setEditPaymentType('Credit')}
+                          onClick={() => { setEditPaymentType('Credit'); setEditAmountPaid(''); setEditHasAdvance(false); }}
                           className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${editPaymentType === 'Credit' ? 'bg-white shadow text-slate-900' : 'text-slate-600'}`}
                         >
-                          Credit (Pay Later / Partial)
+                          Credit (Udhaar)
                         </button>
                       </div>
                     </div>
 
-                    <div className="w-full sm:w-48">
-                      <label className="block text-xs font-bold text-slate-600 mb-1">Amount Paid (Rs.)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder={editPaymentType === 'Cash' ? editTotal.toString() : '0.00'}
-                        value={editAmountPaid}
-                        onChange={e => setEditAmountPaid(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-primary/20"
-                      />
-                    </div>
+                    {editPaymentType === 'Cash' && (
+                      <div className="w-full sm:w-56">
+                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                          Cash Paid (Rs.)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder={editTotal.toString()}
+                          value={editAmountPaid}
+                          onChange={e => setEditAmountPaid(e.target.value)}
+                          className="w-full px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-primary/20 text-right tabular-nums"
+                        />
+                      </div>
+                    )}
                   </div>
+
+                  {editPaymentType === 'Credit' && (
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200/80 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-900">
+                        <span>Payment Terms:</span>
+                        <span className="px-2 py-0.5 bg-emerald-600 text-white rounded-md text-[10px] font-black uppercase tracking-wider">
+                          100% Credit (Udhaar)
+                        </span>
+                      </div>
+                      <p className="text-xs text-emerald-700">
+                        Full amount of <strong className="tabular-nums">Rs. {formatAmount(editRemainingBalance)}</strong> will be owed to the vendor (Vendor Qarz).
+                      </p>
+
+                      <label className="flex items-center gap-2 pt-2 border-t border-emerald-200/60 cursor-pointer select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={editHasAdvance} 
+                          onChange={e => {
+                            setEditHasAdvance(e.target.checked);
+                            if (!e.target.checked) setEditAmountPaid('');
+                          }}
+                          className="w-4 h-4 rounded text-primary focus:ring-primary/20 cursor-pointer"
+                        />
+                        <span className="text-xs font-bold text-slate-700">Did you make a partial cash advance payment?</span>
+                      </label>
+
+                      {editHasAdvance && (
+                        <div className="pt-1 flex items-center justify-between gap-3">
+                          <span className="text-xs font-bold text-slate-600">Advance Paid (Rs.):</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={editTotal > 0 ? editTotal - 1 : 0}
+                            step="0.01"
+                            value={editAmountPaid}
+                            onChange={e => setEditAmountPaid(e.target.value)}
+                            placeholder="0.00"
+                            className="w-36 px-3 py-1.5 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 tabular-nums"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="pt-3 border-t border-slate-200/60 grid grid-cols-3 gap-2 text-center text-xs">
                     <div className="bg-white p-2.5 rounded-xl border border-slate-100">
@@ -796,11 +950,13 @@ export default function PurchasesPage() {
                       <p className="font-extrabold text-slate-900 text-sm mt-0.5">Rs. {formatAmount(editTotal)}</p>
                     </div>
                     <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                      <p className="text-emerald-600 font-bold uppercase text-[10px]">Amount Paid</p>
+                      <p className="text-emerald-600 font-bold uppercase text-[10px]">
+                        {editPaymentType === 'Cash' ? 'Cash Paid' : 'Down Payment'}
+                      </p>
                       <p className="font-extrabold text-emerald-600 text-sm mt-0.5">Rs. {formatAmount(editPaid)}</p>
                     </div>
                     <div className="bg-white p-2.5 rounded-xl border border-slate-100">
-                      <p className={`${editRemainingBalance > 0 ? 'text-rose-600' : 'text-slate-400'} font-bold uppercase text-[10px]`}>Credit Balance</p>
+                      <p className={`${editRemainingBalance > 0 ? 'text-rose-600' : 'text-slate-400'} font-bold uppercase text-[10px]`}>Vendor Qarz</p>
                       <p className={`font-extrabold text-sm mt-0.5 ${editRemainingBalance > 0 ? 'text-danger' : 'text-slate-500'}`}>
                         Rs. {formatAmount(editRemainingBalance)}
                       </p>

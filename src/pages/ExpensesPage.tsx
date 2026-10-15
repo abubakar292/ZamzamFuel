@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { onSnapshot, addDoc, updateDoc, serverTimestamp, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { getUserCollection, getUserDoc } from '../lib/firebase';
 import { Expense } from '../types';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { formatAmount } from '../utils/calculations';
-import { parseDateInput, getTodayDateString, formatDisplayDate } from '../utils/dateUtils';
-import { Search, Plus, Trash2, Receipt, Filter } from 'lucide-react';
+import { parseDateInput, getTodayDateString, formatDisplayDate, formatDateForInput } from '../utils/dateUtils';
+import { Search, Plus, Trash2, Receipt, Filter, Pencil, X, Save } from 'lucide-react';
 
 const CATEGORIES = ['Salary', 'Utilities', 'Maintenance', 'Fuel', 'Miscellaneous', 'Other'];
 
@@ -27,6 +27,16 @@ export default function ExpensesPage() {
   const [date, setDate] = useState(() => getTodayDateString());
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Edit State & Form
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategory, setEditCategory] = useState(CATEGORIES[0]);
+  const [editPaidTo, setEditPaidTo] = useState('');
+  const [editDate, setEditDate] = useState(() => getTodayDateString());
+  const [editNotes, setEditNotes] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
 
   // Delete
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
@@ -50,15 +60,15 @@ export default function ExpensesPage() {
       const expDate = parseDateInput(date);
 
       await addDoc(getUserCollection('expenses'), {
-        title,
+        title: title.trim(),
         amount: parseFloat(amount),
         category,
-        paidTo,
+        paidTo: paidTo.trim(),
         date: expDate,
-        notes,
+        notes: notes.trim(),
         createdAt: serverTimestamp()
       });
-      showToast('Expense added', 'success');
+      showToast('Expense added successfully', 'success');
       setActiveTab('history');
       // Reset
       setTitle(''); setAmount(''); setPaidTo(''); setNotes('');
@@ -66,6 +76,49 @@ export default function ExpensesPage() {
       showToast('Failed to add expense', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartEdit = (exp: Expense) => {
+    setEditingExpense(exp);
+    setEditTitle(exp.title || '');
+    setEditAmount(exp.amount !== undefined ? exp.amount.toString() : '');
+    setEditCategory(exp.category || CATEGORIES[0]);
+    setEditPaidTo(exp.paidTo || '');
+    setEditDate(formatDateForInput(exp.date));
+    setEditNotes(exp.notes || '');
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense?.id) return;
+    if (!editTitle.trim()) return showToast('Please enter an expense title', 'warning');
+    const parsedAmount = parseFloat(editAmount);
+    if (isNaN(parsedAmount) || parsedAmount < 0) {
+      return showToast('Please enter a valid amount', 'warning');
+    }
+
+    setEditLoading(true);
+    try {
+      const expDate = parseDateInput(editDate);
+
+      await updateDoc(getUserDoc('expenses', editingExpense.id), {
+        title: editTitle.trim(),
+        amount: parsedAmount,
+        category: editCategory,
+        paidTo: editPaidTo.trim(),
+        date: expDate,
+        notes: editNotes.trim(),
+        updatedAt: serverTimestamp()
+      });
+
+      showToast('Expense updated successfully', 'success');
+      setEditingExpense(null);
+    } catch (error) {
+      console.error('Failed to update expense:', error);
+      showToast('Failed to update expense', 'error');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -85,10 +138,11 @@ export default function ExpensesPage() {
     const d = e.date.toDate();
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  }).reduce((acc, e) => acc + e.amount, 0);
+  }).reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
   const filteredExpenses = expenses.filter(e => {
-    const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = e.title.toLowerCase().includes(search.toLowerCase()) || 
+      (e.paidTo && e.paidTo.toLowerCase().includes(search.toLowerCase()));
     const matchesCat = filterCat === 'All' || e.category === filterCat;
     return matchesSearch && matchesCat;
   });
@@ -145,7 +199,7 @@ export default function ExpensesPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" placeholder="Search by title..." value={search} onChange={e => setSearch(e.target.value)}
+                <input type="text" placeholder="Search by title or paid to..." value={search} onChange={e => setSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm"
                 />
               </div>
@@ -169,7 +223,7 @@ export default function ExpensesPage() {
                   filteredExpenses.map((exp) => (
                     <div key={exp.id} className="p-4 sm:p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between hover:bg-slate-50 transition-colors group">
                       <div className="flex-1 min-w-0 w-full">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${getCatColor(exp.category)}`}>
                             {exp.category}
                           </span>
@@ -179,17 +233,29 @@ export default function ExpensesPage() {
                         </div>
                         <h4 className="font-bold text-slate-800 text-base truncate">{exp.title}</h4>
                         {exp.paidTo && <p className="text-sm text-slate-500 truncate">Paid to: {exp.paidTo}</p>}
+                        {exp.notes && <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">{exp.notes}</p>}
                       </div>
                       
-                      <div className="flex items-center justify-between w-full sm:w-auto gap-4 sm:gap-4 shrink-0 mt-2 sm:mt-0">
-                        <p className="font-black text-base sm:text-lg text-slate-800 tabular-nums shrink-0">Rs. {formatAmount(exp.amount)}</p>
-                        <button 
-                          onClick={() => setExpenseToDelete(exp)}
-                          className="p-2 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                          title="Delete expense"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                      <div className="flex items-center justify-between w-full sm:w-auto gap-3 shrink-0 mt-2 sm:mt-0">
+                        <p className="font-black text-base sm:text-lg text-slate-800 tabular-nums shrink-0 mr-1">
+                          Rs. {formatAmount(exp.amount)}
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleStartEdit(exp)}
+                            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            title="Edit expense"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => setExpenseToDelete(exp)}
+                            className="p-2 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                            title="Delete expense"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -214,15 +280,15 @@ export default function ExpensesPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Amount (Rs.) *</label>
-                    <input type="number" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    <input type="number" step="0.01" min="0" required value={amount} onChange={e => setAmount(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-semibold"
                       placeholder="0.00"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">Category *</label>
                     <select value={category} onChange={e => setCategory(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
                     >
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
@@ -260,6 +326,151 @@ export default function ExpensesPage() {
               </form>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Expense Modal */}
+      <AnimatePresence>
+        {editingExpense && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEditingExpense(null)}
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90]"
+            />
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className="bg-white rounded-2xl shadow-card-lg w-full max-w-lg pointer-events-auto overflow-hidden flex flex-col max-h-[90vh]"
+              >
+                <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                      <Pencil className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-800">Edit Expense</h3>
+                      <p className="text-xs text-slate-400">Update expense record details</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditingExpense(null)}
+                    className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEdit} className="p-5 sm:p-6 overflow-y-auto space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Expense Title *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                      placeholder="e.g. Electric Bill"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Amount (Rs.) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        required
+                        value={editAmount}
+                        onChange={e => setEditAmount(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold tabular-nums"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Category *
+                      </label>
+                      <select
+                        value={editCategory}
+                        onChange={e => setEditCategory(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-medium"
+                      >
+                        {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Paid To
+                      </label>
+                      <input
+                        type="text"
+                        value={editPaidTo}
+                        onChange={e => setEditPaidTo(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                        placeholder="Person or Company"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={editDate}
+                        onChange={e => setEditDate(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Notes
+                    </label>
+                    <textarea
+                      value={editNotes}
+                      onChange={e => setEditNotes(e.target.value)}
+                      rows={2}
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                      placeholder="Additional notes..."
+                    />
+                  </div>
+
+                  <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setEditingExpense(null)}
+                      className="px-4 py-2.5 rounded-xl text-slate-600 font-medium text-sm hover:bg-slate-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={editLoading}
+                      className="px-5 py-2.5 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary-light transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                    >
+                      <Save className="w-4 h-4" />
+                      {editLoading ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
 

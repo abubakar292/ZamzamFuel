@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast';
 import { Search, Plus, User, ArrowRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatAmount } from '../utils/calculations';
+import { recalculateAllVendors } from '../utils/recalculate';
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -21,13 +22,80 @@ export default function VendorsPage() {
   
   const { showToast } = useToast();
 
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+
   useEffect(() => {
+    recalculateAllVendors().catch(err => console.error('Failed to sync vendors on mount:', err));
+
     const unsub = onSnapshot(getUserCollection('vendors'), (snapshot) => {
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Vendor));
       setVendors(data.sort((a, b) => b.createdAt?.toMillis() - a.createdAt?.toMillis() || 0));
     });
-    return () => unsub();
+
+    const unsubP = onSnapshot(getUserCollection('purchases'), (snapshot) => {
+      setPurchases(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubPay = onSnapshot(getUserCollection('vendorPayments'), (snapshot) => {
+      setPayments(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsub();
+      unsubP();
+      unsubPay();
+    };
   }, []);
+
+  const getVendorBalance = (v: Vendor): number => {
+    const vId = v.id;
+    const vName = (v.name || '').trim().toLowerCase();
+    
+    if (purchases.length > 0 || payments.length > 0) {
+      let totPur = 0;
+      let totPaid = 0;
+
+      purchases.forEach(p => {
+        const dVendorId = p.vendorId || p.vendor_id;
+        const dVendorName = (p.vendorName || p.vendor || '').trim().toLowerCase();
+        if (dVendorId === vId || (vName && dVendorName && dVendorName === vName)) {
+          const pTotal = Number(p.total ?? p.netSubtotal) || 0;
+          totPur += pTotal;
+
+          const pType = (p.paymentType || '').toString().toLowerCase();
+          const isCredit = pType.includes('credit');
+          if (isCredit) {
+            const storedRem = Number(p.remainingBalance);
+            const storedPaid = Number(p.amountPaid);
+            if (!isNaN(storedRem) && storedRem > 0 && storedRem < pTotal) {
+              totPaid += Math.max(0, pTotal - storedRem);
+            } else if (!isNaN(storedPaid) && storedPaid > 0 && storedPaid < pTotal) {
+              totPaid += storedPaid;
+            }
+          } else {
+            if (p.amountPaid !== undefined && p.amountPaid !== null && p.amountPaid !== '') {
+              totPaid += Number(p.amountPaid) || 0;
+            } else {
+              totPaid += pTotal;
+            }
+          }
+        }
+      });
+
+      payments.forEach(pay => {
+        const dVendorId = pay.vendorId || pay.vendor_id;
+        const dVendorName = (pay.vendorName || pay.vendor || '').trim().toLowerCase();
+        if (dVendorId === vId || (vName && dVendorName && dVendorName === vName)) {
+          totPaid += (Number(pay.amount) || 0);
+        }
+      });
+
+      return Math.max(0, totPur - totPaid);
+    }
+
+    return Number(v.vendorQarz) || 0;
+  };
 
   const handleAddVendor = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,14 +177,19 @@ export default function VendorsPage() {
             </div>
             
             <div className="pt-4 border-t border-slate-100 flex justify-between items-end gap-2">
-              <div className="min-w-0" title={vendor.vendorQarz > 0 ? `Rs. ${formatAmount(vendor.vendorQarz)}` : 'Cleared'}>
-                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Current Balance</p>
-                {vendor.vendorQarz > 0 ? (
-                  <p className="font-extrabold text-danger tabular-nums truncate text-base">Rs. {formatAmount(vendor.vendorQarz)}</p>
-                ) : (
-                  <p className="font-bold text-success flex items-center gap-1">Cleared <span className="text-sm">✓</span></p>
-                )}
-              </div>
+              {(() => {
+                const bal = getVendorBalance(vendor);
+                return (
+                  <div className="min-w-0" title={bal > 0 ? `Rs. ${formatAmount(bal)}` : 'Cleared'}>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Current Balance</p>
+                    {bal > 0 ? (
+                      <p className="font-extrabold text-danger tabular-nums truncate text-base">Rs. {formatAmount(bal)}</p>
+                    ) : (
+                      <p className="font-bold text-success flex items-center gap-1">Cleared <span className="text-sm">✓</span></p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </motion.div>
         ))}
