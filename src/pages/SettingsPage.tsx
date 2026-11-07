@@ -1,10 +1,33 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Building2, User, Phone, MapPin, Save, Wallet, Smartphone, Sparkles, CheckCircle2, Eye } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Building2,
+  User,
+  Phone,
+  MapPin,
+  Save,
+  Wallet,
+  Smartphone,
+  Sparkles,
+  CheckCircle2,
+  Database,
+  Download,
+  Upload,
+  FileJson,
+  ShieldCheck,
+  AlertTriangle,
+  RefreshCw,
+} from 'lucide-react';
 import { useStationProfile } from '../hooks/useStationProfile';
 import { useToast } from '../components/Toast';
 import { PWAInstallButton } from '../components/PWAInstallPrompt';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { generateStationIcon, updateAppBrand } from '../utils/dynamicBrand';
+import {
+  exportFullDatabaseToJson,
+  getDatabaseSummaryCounts,
+  restoreFullDatabaseFromJson,
+  BackupMetadata,
+} from '../utils/backupRestore';
 
 export default function SettingsPage() {
   const { profile, updateProfile, loading } = useStationProfile();
@@ -13,9 +36,38 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState(profile);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Backup & Restore state
+  const [counts, setCounts] = useState<BackupMetadata['counts'] | null>(null);
+  const [loadingCounts, setLoadingCounts] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [lastBackupFile, setLastBackupFile] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState<{
+    name: string;
+    content: string;
+    summary: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     setFormData(profile);
   }, [profile]);
+
+  const refreshCounts = async () => {
+    setLoadingCounts(true);
+    try {
+      const c = await getDatabaseSummaryCounts();
+      setCounts(c);
+    } catch (err) {
+      console.error('Failed to fetch record counts:', err);
+    } finally {
+      setLoadingCounts(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshCounts();
+  }, []);
 
   // Generate live dynamic preview icon as user edits station name
   const liveIcon = useMemo(() => {
@@ -44,6 +96,91 @@ export default function SettingsPage() {
     }
   };
 
+  const handleExportBackup = async () => {
+    setIsExporting(true);
+    try {
+      const { filename, payload } = await exportFullDatabaseToJson();
+      setLastBackupFile(filename);
+      setCounts(payload.metadata.counts);
+      showToast(
+        `Backup downloaded: ${filename}. All records saved to your device.`,
+        'success'
+      );
+    } catch (error: any) {
+      console.error('Backup export failed:', error);
+      showToast(
+        error?.message || 'Failed to export database backup. Please try again.',
+        'error'
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed || typeof parsed !== 'object' || !parsed.data) {
+        showToast(
+          'Invalid backup file: missing "data" object. Please choose a valid .json backup file.',
+          'error'
+        );
+        return;
+      }
+
+      const d = parsed.data;
+      const vCount = Array.isArray(d.vendors) ? d.vendors.length : 0;
+      const pCount = Array.isArray(d.purchases) ? d.purchases.length : 0;
+      const payCount = Array.isArray(d.vendorPayments) ? d.vendorPayments.length : 0;
+      const rCount = Array.isArray(d.fuelReadings) ? d.fuelReadings.length : 0;
+      const eCount = Array.isArray(d.expenses) ? d.expenses.length : 0;
+
+      setPendingRestoreFile({
+        name: file.name,
+        content: text,
+        summary: `${vCount} Vendors, ${pCount} Purchases, ${payCount} Vendor Payments, ${rCount} Fuel Readings, ${eCount} Expenses`,
+      });
+    } catch (err) {
+      console.error('Error reading JSON backup file:', err);
+      showToast(
+        'Could not parse JSON file. Make sure you selected a valid .json backup.',
+        'error'
+      );
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!pendingRestoreFile) return;
+    setIsRestoring(true);
+    try {
+      const restoredCounts = await restoreFullDatabaseFromJson(
+        pendingRestoreFile.content
+      );
+      setCounts(restoredCounts);
+      setPendingRestoreFile(null);
+      showToast(
+        'Backup restored and all ledgers recalculated successfully!',
+        'success'
+      );
+    } catch (error: any) {
+      console.error('Restore failed:', error);
+      showToast(
+        error?.message || 'Failed to restore backup file. Please verify the file.',
+        'error'
+      );
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -63,11 +200,145 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 transition-colors">Settings & Station Branding</h1>
         <p className="text-slate-500 text-sm mt-1 transition-colors">
-          Manage your fuel station profile, live branding, loading splash screen, and home screen icon.
+          Manage your fuel station profile, database backups (.JSON), loading splash screen, and home screen icon.
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-8">
+        {/* Database Backup & Restore (.JSON) Section */}
+        <section className="bg-white rounded-2xl shadow-card-lg border border-amber-200/80 overflow-hidden">
+          <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-900 to-[#132F57] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 shrink-0">
+                  <Database className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    Database Backup & Restore (.JSON)
+                  </h2>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Export all station data to your device in Supabase-ready &amp; Firebase-ready JSON format.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={refreshCounts}
+              disabled={loadingCounts}
+              className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs font-semibold text-slate-200 transition-colors"
+              aria-label="Refresh record counts"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingCounts ? 'animate-spin' : ''}`} />
+              <span>Refresh counts</span>
+            </button>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Live Record Counts Grid */}
+            <div>
+              <p className="text-xs font-bold text-slate-500 mb-3">
+                Records included in full backup
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-xs text-slate-500 block">Vendors</span>
+                  <span className="text-lg font-extrabold text-slate-900 tabular-nums">
+                    {counts ? counts.vendors : '...'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-xs text-slate-500 block">Purchases</span>
+                  <span className="text-lg font-extrabold text-slate-900 tabular-nums">
+                    {counts ? counts.purchases : '...'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-xs text-slate-500 block">Vendor payments</span>
+                  <span className="text-lg font-extrabold text-slate-900 tabular-nums">
+                    {counts ? counts.vendorPayments : '...'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-xs text-slate-500 block">Fuel readings</span>
+                  <span className="text-lg font-extrabold text-slate-900 tabular-nums">
+                    {counts ? counts.fuelReadings : '...'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 col-span-2 sm:col-span-1">
+                  <span className="text-xs text-slate-500 block">Expenses</span>
+                  <span className="text-lg font-extrabold text-slate-900 tabular-nums">
+                    {counts ? counts.expenses : '...'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Supabase Compatibility Notice */}
+            <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-950 space-y-1 leading-relaxed">
+                <p className="font-bold text-emerald-900">
+                  100% Ready for Supabase (PostgreSQL) Restore
+                </p>
+                <p className="text-emerald-800">
+                  The downloaded <code className="font-mono font-bold bg-emerald-100 px-1 py-0.5 rounded">.json</code> file saves your complete station profile, fuel stock &amp; readings, vendor credit ledgers (Qarz), purchase invoices, vendor payments, and expenses with ISO-8601 timestamps and exact decimal numbers so it can be restored directly into Supabase whenever you are ready to migrate.
+                </p>
+              </div>
+            </div>
+
+            {lastBackupFile && (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-950">
+                <div className="flex items-center gap-2 font-semibold">
+                  <FileJson className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Latest backup saved to device: <strong>{lastBackupFile}</strong></span>
+                </div>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                  Saved
+                </span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleExportBackup}
+                disabled={isExporting}
+                className="flex-1 min-h-[48px] flex items-center justify-center gap-2.5 px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black text-sm shadow-md active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isExporting ? (
+                  <div className="w-5 h-5 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+                <span>
+                  {isExporting ? 'Preparing & Downloading JSON Backup...' : 'Backup All Data to Device (.JSON)'}
+                </span>
+              </button>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isRestoring}
+                className="min-h-[48px] flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm transition-all active:scale-[0.99] disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4 text-slate-600" />
+                <span>Restore from .JSON File</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Station Profile Section */}
         <section className="bg-white rounded-2xl shadow-card-lg border border-slate-100 overflow-hidden transition-colors">
           <div className="p-6 border-b border-slate-100 bg-slate-50/50 transition-colors">
@@ -294,6 +565,61 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+
+      {/* Confirmation Dialog for Restoring JSON Backup */}
+      {pendingRestoreFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Restore Database from Backup?
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  File: <strong className="text-slate-800">{pendingRestoreFile.name}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
+              <p className="font-bold text-slate-800">Records found in backup:</p>
+              <p>{pendingRestoreFile.summary}</p>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Restoring will merge all records from this backup file into your account and automatically recalculate stock and vendor ledgers.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingRestoreFile(null)}
+                disabled={isRestoring}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRestore}
+                disabled={isRestoring}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-sm disabled:opacity-50"
+              >
+                {isRestoring ? (
+                  <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                <span>{isRestoring ? 'Restoring Data...' : 'Confirm & Restore'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
