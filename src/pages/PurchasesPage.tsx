@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, onSnapshot, query, orderBy, doc, runTransaction, serverTimestamp, writeBatch, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { collection, onSnapshot, query, orderBy, doc, runTransaction, serverTimestamp, writeBatch, deleteDoc, updateDoc, setDoc, db, getUserCollection, getUserDoc } from '../lib/supabase';
 import { Purchase, Vendor, PurchaseItem, FuelPrices } from '../types';
 import { useToast } from '../components/Toast';
 import { formatAmount, weightedAvgPrice } from '../utils/calculations';

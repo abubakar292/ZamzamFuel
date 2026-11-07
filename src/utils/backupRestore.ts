@@ -1,5 +1,4 @@
-import { getDocs, getDoc, setDoc, doc, Timestamp, writeBatch } from 'firebase/firestore';
-import { auth, db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { getDocs, getDoc, setDoc, doc, Timestamp, writeBatch, auth, db, getUserCollection, getUserDoc } from '../lib/supabase';
 import { recalculateDatabase } from './recalculate';
 
 export interface BackupMetadata {

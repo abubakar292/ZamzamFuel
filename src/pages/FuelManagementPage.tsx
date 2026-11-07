@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { doc, onSnapshot, serverTimestamp, writeBatch, collection, query, orderBy, limit, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, writeBatch, collection, query, orderBy, limit, setDoc, updateDoc, deleteDoc, db, getUserCollection, getUserDoc } from '../lib/supabase';
 import { recalculateDatabase } from '../utils/recalculate';
 import { Edit3, X, Trash2, AlertTriangle, Droplets, Fuel, Save, Gauge } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
 import { FuelPrices, FuelReading } from '../types';
 import { useToast } from '../components/Toast';
 import { dailySold, dailyAmount, profitPerLiter, totalProfit, formatAmount, formatLiters } from '../utils/calculations';

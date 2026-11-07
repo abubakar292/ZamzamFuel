@@ -1,5 +1,4 @@
-import { doc, getDoc, getDocs, setDoc, query, where, writeBatch } from 'firebase/firestore';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { doc, getDoc, getDocs, setDoc, query, where, writeBatch, db, getUserCollection, getUserDoc } from '../lib/supabase';
 import { weightedAvgPrice } from './calculations';
 import { FuelPrices } from '../types';
 

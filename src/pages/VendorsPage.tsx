@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { collection, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { collection, onSnapshot, addDoc, serverTimestamp, db, getUserCollection, getUserDoc } from '../lib/supabase';
 import { Vendor } from '../types';
 import { useToast } from '../components/Toast';
 import { Search, Plus, User, ArrowRight, X } from 'lucide-react';

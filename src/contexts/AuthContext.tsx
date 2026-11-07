@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, isFirebaseConfigured } from '../lib/firebase';
+import { User, onAuthStateChanged, auth, isSupabaseConfigured as isFirebaseConfigured } from '../lib/supabase';
 import AppLoader from '../components/AppLoader';
 import { Flame, AlertTriangle } from 'lucide-react';
 

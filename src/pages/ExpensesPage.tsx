@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { onSnapshot, addDoc, updateDoc, serverTimestamp, deleteDoc, query, orderBy } from 'firebase/firestore';
-import { getUserCollection, getUserDoc } from '../lib/firebase';
+import { onSnapshot, addDoc, updateDoc, serverTimestamp, deleteDoc, query, orderBy, getUserCollection, getUserDoc } from '../lib/supabase';
 import { Expense } from '../types';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';

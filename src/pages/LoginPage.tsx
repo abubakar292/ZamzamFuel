@@ -3,10 +3,12 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  updateProfile 
-} from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+  updateProfile,
+  doc,
+  setDoc,
+  auth,
+  db,
+} from '../lib/supabase';
 import { useToast } from '../components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 

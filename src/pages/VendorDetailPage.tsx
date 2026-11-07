@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { onSnapshot, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { getUserCollection, getUserDoc } from '../lib/firebase';
+import { onSnapshot, addDoc, deleteDoc, serverTimestamp, getUserCollection, getUserDoc } from '../lib/supabase';
 import { Vendor, Purchase, VendorPayment } from '../types';
 import { useToast } from '../components/Toast';
 import { formatAmount } from '../utils/calculations';

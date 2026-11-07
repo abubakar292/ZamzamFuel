@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { getDocs, getDoc } from 'firebase/firestore';
-import { getUserCollection, getUserDoc } from '../lib/firebase';
+import { getDocs, getDoc, getUserCollection, getUserDoc } from '../lib/supabase';
 import { useToast } from '../components/Toast';
 import { formatAmount } from '../utils/calculations';
 import { parseDateInput, formatDisplayDate, getTodayDateString } from '../utils/dateUtils';

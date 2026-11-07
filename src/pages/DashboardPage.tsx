@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Droplets, Fuel, CreditCard, Wallet, Users, BarChart2, Plus, Edit3, X, Check, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
-import { collection, doc, onSnapshot, getDocs, updateDoc, setDoc } from 'firebase/firestore';
-import { db, getUserCollection, getUserDoc } from '../lib/firebase';
+import { collection, doc, onSnapshot, getDocs, updateDoc, setDoc, db, getUserCollection, getUserDoc } from '../lib/supabase';
 import { FuelPrices } from '../types';
 import CountUp from '../components/CountUp';
 import { Link } from 'react-router-dom';
