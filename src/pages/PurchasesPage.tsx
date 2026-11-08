@@ -425,7 +425,6 @@ export default function PurchasesPage() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Purchases</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Manage stock purchases, fuel costs, and vendor invoices</p>
         </div>
         <div className="flex bg-white rounded-xl shadow-sm p-1 border border-slate-100">
           <button 
@@ -571,7 +570,6 @@ export default function PurchasesPage() {
                       <div className="flex justify-between items-center gap-2">
                         <div>
                           <label className="text-sm font-bold text-slate-600 block">Cash Paid</label>
-                          <span className="text-[11px] text-slate-400">Paid from cash drawer</span>
                         </div>
                         <input type="number" min="0" step="0.01" value={amountPaid} onChange={e => setAmountPaid(e.target.value)}
                           className="w-36 sm:w-44 px-3 py-2 rounded-lg bg-white border border-slate-300 text-sm font-bold text-right focus:ring-2 focus:ring-primary/20 focus:border-primary tabular-nums"
@@ -586,9 +584,6 @@ export default function PurchasesPage() {
                             100% Credit (Udhaar)
                           </span>
                         </div>
-                        <p className="text-xs text-emerald-700 leading-relaxed">
-                          Full amount of <strong className="tabular-nums">Rs. {formatAmount(remainingBalance)}</strong> will be added to <strong className="capitalize">{vendors.find(v => v.id === vendorId)?.name || 'the vendor'}</strong>'s payable ledger (Qarz).
-                        </p>
 
                         <label className="flex items-center gap-2 pt-2 border-t border-emerald-200/60 cursor-pointer select-none">
                           <input 
@@ -744,7 +739,7 @@ export default function PurchasesPage() {
                   <div>
                     <h3 className="text-lg font-bold text-slate-800">Edit Purchase Invoice</h3>
                     <p className="text-xs text-slate-400">
-                      INV-{editingPurchase.invoiceNumber.toString().padStart(3, '0')} &bull; Update stock liters & purchase prices
+                      INV-{editingPurchase.invoiceNumber.toString().padStart(3, '0')}
                     </p>
                   </div>
                 </div>
@@ -908,9 +903,6 @@ export default function PurchasesPage() {
                           100% Credit (Udhaar)
                         </span>
                       </div>
-                      <p className="text-xs text-emerald-700">
-                        Full amount of <strong className="tabular-nums">Rs. {formatAmount(editRemainingBalance)}</strong> will be owed to the vendor (Vendor Qarz).
-                      </p>
 
                       <label className="flex items-center gap-2 pt-2 border-t border-emerald-200/60 cursor-pointer select-none">
                         <input 
@@ -961,13 +953,6 @@ export default function PurchasesPage() {
                       </p>
                     </div>
                   </div>
-                </div>
-
-                <div className="bg-blue-50 text-blue-800 p-3.5 rounded-xl text-xs flex items-start gap-2.5">
-                  <AlertTriangle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                  <span>
-                    Saving edits will automatically update tank stock levels, re-calculate the weighted average purchase prices, adjust vendor credit balances, and update cash calculations in Firebase.
-                  </span>
                 </div>
               </div>
 
@@ -1038,11 +1023,6 @@ export default function PurchasesPage() {
                       <span className="font-semibold text-danger">Rs. {formatAmount(purchaseToDelete.remainingBalance)}</span>
                     </div>
                   )}
-                </div>
-
-                <div className="bg-amber-50 text-amber-800 p-3 rounded-xl text-xs flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <span>Deleting this invoice will automatically revert purchased fuel stock, recompute weighted average purchase prices, adjust vendor credit balances, and recalculate Cash in Hand.</span>
                 </div>
               </div>
 

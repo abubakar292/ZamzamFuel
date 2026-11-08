@@ -38,32 +38,27 @@ export default function SettingsPage() {
     content: string;
     summary: string;
   } | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    setFormData(profile);
-  }, [profile]);
-
-  const liveIcon = useMemo(() => {
-    const clean = (formData.stationName || '').trim();
-    if (!clean || clean.toUpperCase() === 'FUELFLOW' || clean.toUpperCase() === 'ZAMZAM') {
-      return OFFICIAL_LOGO_URL;
+    if (!isDirty) {
+      setFormData(profile);
     }
-    return generateStationIcon(clean, 192);
-  }, [formData.stationName]);
+  }, [profile, isDirty]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
       const name = formData.stationName?.trim() || 'FuelFlow';
-      updateAppBrand(name);
 
       await updateProfile({
         ...formData,
         stationName: name,
         initialInvestment: Number(formData.initialInvestment) || 0,
       });
+      setIsDirty(false);
       showToast('Settings saved successfully', 'success');
     } catch (error) {
       console.error(error);
@@ -151,6 +146,7 @@ export default function SettingsPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    setIsDirty(true);
     setFormData((prev) => ({
       ...prev,
       [name]:
@@ -356,8 +352,8 @@ export default function SettingsPage() {
           <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <img
-                src={liveIcon}
-                alt="App Icon"
+                src={OFFICIAL_LOGO_URL}
+                alt="FuelFlow App Icon"
                 className="w-12 h-12 rounded-2xl shadow-sm border border-[#1B2A4A]/20 shrink-0 object-cover"
               />
               <div>
@@ -368,7 +364,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-slate-500 mt-0.5">
                   {isInstalled
                     ? 'Installed on this device'
-                    : `Install ${formData.stationName || 'FuelFlow'} shortcut`}
+                    : 'Install FuelFlow shortcut'}
                 </p>
               </div>
             </div>

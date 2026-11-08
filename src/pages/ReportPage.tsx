@@ -199,15 +199,22 @@ export default function ReportPage() {
     const doc = new jsPDF();
 
     // Header banner
-    doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, 210, 28, 'F');
+    const shopTitle = (profile.stationName || 'FUELFLOW').trim().toUpperCase();
+    doc.setFillColor(27, 42, 74); // Deep Midnight Navy (#1B2A4A)
+    doc.rect(0, 0, 210, 30, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(15);
     doc.setFont('helvetica', 'bold');
-    doc.text(`${profile.stationName?.toUpperCase() || 'FUEL STATION'} - SALES REPORT`, 105, 12, { align: 'center' });
+    doc.text(`${shopTitle} - SALES REPORT`, 105, 12, { align: 'center' });
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Period: ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)} | Type: ${reportType}`, 105, 20, { align: 'center' });
+    const subHeaderParts = [
+      `Period: ${formatDisplayDate(fromDate)} to ${formatDisplayDate(toDate)}`,
+      `Type: ${reportType}`,
+      profile.ownerName ? `Owner: ${profile.ownerName}` : '',
+      profile.phone ? `Tel: ${profile.phone}` : '',
+    ].filter(Boolean);
+    doc.text(subHeaderParts.join('  |  '), 105, 21, { align: 'center' });
 
     // Table rows
     const summaryPdfRows: any[] = [];
@@ -264,11 +271,12 @@ export default function ReportPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
-      {/* Title & Description */}
+      {/* Title & Shop Name */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight">Sales Report</h2>
-          <p className="text-xs text-slate-400">View sales volume, fuel liters totals, expenses, and net profit</p>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+            {profile.stationName || 'FuelFlow'} — Sales Report
+          </h2>
         </div>
       </div>
 

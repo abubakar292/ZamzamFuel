@@ -51,8 +51,8 @@ export const PWAInstallPrompt: React.FC = () => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [dismissed, setDismissed] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
-  const [stationName, setStationName] = useState(() => getStoredStationName());
-  const [iconUrl, setIconUrl] = useState(() => getStoredStationIcon() || generateStationIcon(getStoredStationName(), 192));
+  const stationName = 'FuelFlow';
+  const iconUrl = OFFICIAL_LOGO_URL;
 
   useEffect(() => {
     // Check if dismissed in this session
@@ -60,18 +60,6 @@ export const PWAInstallPrompt: React.FC = () => {
     if (isDismissed) {
       setDismissed(true);
     }
-
-    const handleBrandChange = (e: any) => {
-      if (e.detail?.stationName) {
-        setStationName(e.detail.stationName);
-      }
-      if (e.detail?.iconUrl) {
-        setIconUrl(e.detail.iconUrl);
-      }
-    };
-
-    window.addEventListener('station_brand_changed', handleBrandChange);
-    return () => window.removeEventListener('station_brand_changed', handleBrandChange);
   }, []);
 
   const handleDismiss = () => {
@@ -152,17 +140,8 @@ export const PWAInstallModal: React.FC<{
   onClose: () => void;
   isIOS?: boolean;
 }> = ({ isOpen, onClose, isIOS = false }) => {
-  const [stationName, setStationName] = useState(() => getStoredStationName());
-  const [iconUrl, setIconUrl] = useState(() => getStoredStationIcon() || generateStationIcon(getStoredStationName(), 192));
-
-  useEffect(() => {
-    const handleBrandChange = (e: any) => {
-      if (e.detail?.stationName) setStationName(e.detail.stationName);
-      if (e.detail?.iconUrl) setIconUrl(e.detail.iconUrl);
-    };
-    window.addEventListener('station_brand_changed', handleBrandChange);
-    return () => window.removeEventListener('station_brand_changed', handleBrandChange);
-  }, []);
+  const stationName = 'FuelFlow';
+  const iconUrl = OFFICIAL_LOGO_URL;
 
   if (!isOpen) return null;
 

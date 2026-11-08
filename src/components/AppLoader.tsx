@@ -1,27 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getStoredStationName, OFFICIAL_LOGO_URL } from '../utils/dynamicBrand';
+import { OFFICIAL_LOGO_URL } from '../utils/dynamicBrand';
 
-export default function AppLoader({ loading, stationName }: { loading: boolean; stationName?: string }) {
-  const [currentName, setCurrentName] = useState(() => {
-    return (stationName || getStoredStationName() || 'FUELFLOW').trim();
-  });
-
-  useEffect(() => {
-    if (stationName) {
-      setCurrentName(stationName.trim());
-    }
-
-    const handleBrandChange = (e: any) => {
-      if (e.detail?.stationName) {
-        setCurrentName(e.detail.stationName.trim());
-      }
-    };
-
-    window.addEventListener('station_brand_changed', handleBrandChange);
-    return () => window.removeEventListener('station_brand_changed', handleBrandChange);
-  }, [stationName]);
-
+export default function AppLoader({ loading }: { loading: boolean; stationName?: string }) {
   return (
     <AnimatePresence>
       {loading && (
@@ -73,17 +54,15 @@ export default function AppLoader({ loading, stationName }: { loading: boolean; 
             />
           </motion.div>
 
-          {/* Title */}
+          {/* Title — Always FUELFLOW on loading screen */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.6 }}
             className="text-center mb-10 z-10 max-w-sm px-4"
           >
-            <h1 className={`font-black text-[#0F172A] tracking-widest mb-1 uppercase truncate ${
-              currentName.length > 20 ? 'text-xl' : currentName.length > 12 ? 'text-2xl' : 'text-3xl sm:text-4xl'
-            }`}>
-              {currentName}
+            <h1 className="font-black text-[#0F172A] tracking-widest mb-1 uppercase text-3xl sm:text-4xl">
+              FUELFLOW
             </h1>
             <p className="text-xs sm:text-sm font-bold tracking-[0.35em] text-[#1B2A4A]">
               FUEL MANAGEMENT

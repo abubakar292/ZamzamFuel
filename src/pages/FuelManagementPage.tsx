@@ -326,7 +326,6 @@ export default function FuelManagementPage() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Daily Closing Entry</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Enter closing meter readings to record daily sales and deduct tank stock</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <label className="text-sm font-medium text-slate-600">Date:</label>
@@ -360,7 +359,6 @@ export default function FuelManagementPage() {
                 Rs. {formatAmount(settings?.petrolAvgPurchasePrice || 0)}
                 <span className="text-xs font-bold text-amber-700 ml-1">/ Liter</span>
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5 truncate">Weighted average cost across purchases</p>
             </div>
             <div className="sm:text-right shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Stock</p>
@@ -387,7 +385,6 @@ export default function FuelManagementPage() {
                 Rs. {formatAmount(settings?.dieselAvgPurchasePrice || 0)}
                 <span className="text-xs font-bold text-blue-700 ml-1">/ Liter</span>
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5 truncate">Weighted average cost across purchases</p>
             </div>
             <div className="sm:text-right shrink-0">
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Stock</p>
@@ -483,9 +480,8 @@ export default function FuelManagementPage() {
                     <div>
                       <p className="font-bold text-rose-900 text-sm">Error: Insufficient Petrol Stock!</p>
                       <p className="mt-0.5">
-                        Current stock is <strong>{formatLiters(pStock)}</strong>, but closing reading calculates <strong>{formatLiters(pSold)}</strong> sold (Shortage of {formatLiters(pSold - pStock)}).
+                        Current stock is <strong>{formatLiters(pStock)}</strong>, but closing reading calculates <strong>{formatLiters(pSold)}</strong> sold.
                       </p>
-                      <p className="mt-1 font-semibold text-rose-700">You cannot enter a reading exceeding available fuel stock.</p>
                     </div>
                   </div>
                 )}
@@ -608,9 +604,8 @@ export default function FuelManagementPage() {
                     <div>
                       <p className="font-bold text-rose-900 text-sm">Error: Insufficient Diesel Stock!</p>
                       <p className="mt-0.5">
-                        Current stock is <strong>{formatLiters(dStock)}</strong>, but closing reading calculates <strong>{formatLiters(dSold)}</strong> sold (Shortage of {formatLiters(dSold - dStock)}).
+                        Current stock is <strong>{formatLiters(dStock)}</strong>, but closing reading calculates <strong>{formatLiters(dSold)}</strong> sold.
                       </p>
-                      <p className="mt-1 font-semibold text-rose-700">You cannot enter a reading exceeding available fuel stock.</p>
                     </div>
                   </div>
                 )}
@@ -700,12 +695,6 @@ export default function FuelManagementPage() {
               <Save className="w-4 h-4" />
               <span>{saving ? 'Saving...' : 'Save Changes'}</span>
             </button>
-            
-            <p className="text-[10px] text-slate-400 text-center md:text-right">
-              {pClosingNum <= pLastReading || dClosingNum <= dLastReading
-                ? 'Enter closing readings higher than starting meter to save'
-                : 'Saves closing readings and updates tank stock'}
-            </p>
           </div>
         </div>
       </div>
@@ -715,7 +704,6 @@ export default function FuelManagementPage() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-slate-800">Recent Entries</h3>
-            <p className="text-xs text-slate-400">Past meter closings & recorded fuel sales</p>
           </div>
           <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
             {recentReadings.length} {recentReadings.length === 1 ? 'entry' : 'entries'}
@@ -912,10 +900,6 @@ export default function FuelManagementPage() {
                     <span className="font-bold text-emerald-600">Rs. {formatAmount(readingToDelete.subtotal || 0)}</span>
                   </div>
                 </div>
-                <div className="bg-amber-50 text-amber-800 p-3 rounded-xl text-xs flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <span>Deleting this entry will automatically revert fuel stock, recalculate current pump meter readings, and update sales totals in Cash in Hand.</span>
-                </div>
               </div>
 
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
@@ -962,10 +946,6 @@ export default function FuelManagementPage() {
               </div>
 
               <div className="p-6 space-y-4">
-                <div className="bg-amber-50 text-amber-700 p-3 rounded-lg text-sm mb-4">
-                  Editing this reading will automatically recalculate today's current stock and readings.
-                </div>
-                
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">Petrol Closing (L)</label>
@@ -1049,9 +1029,6 @@ export default function FuelManagementPage() {
               </div>
 
               <div className="p-6 space-y-4">
-                <p className="text-sm text-slate-600">
-                  Set or adjust the current physical pump meter reading for <strong className="capitalize text-slate-800">{calibrating}</strong>. Future closing entries will calculate sales from this reading.
-                </p>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1.5">Starting Meter Reading (Liters)</label>
                   <input 

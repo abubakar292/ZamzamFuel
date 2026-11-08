@@ -75,9 +75,19 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-bold text-white hidden sm:block truncate">
-          Welcome back, {profile.ownerName || 'Admin'}
-        </h1>
+        <div className="hidden sm:flex items-center gap-3 min-w-0">
+          <span className="text-lg font-black text-white tracking-wide uppercase truncate">
+            {profile.stationName || 'FuelFlow'}
+          </span>
+          {profile.ownerName && (
+            <>
+              <span className="text-white/30 font-light">|</span>
+              <span className="text-sm font-medium text-white/85 truncate">
+                Welcome back, {profile.ownerName}
+              </span>
+            </>
+          )}
+        </div>
         <div className="sm:hidden flex items-center gap-2 min-w-0">
           <img
             src={OFFICIAL_LOGO_URL}
