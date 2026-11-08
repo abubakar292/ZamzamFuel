@@ -8,6 +8,8 @@ import { useStationProfile } from '../../hooks/useStationProfile';
 import { PWAInstallButton } from '../PWAInstallPrompt';
 import { formatLiters } from '../../utils/calculations';
 
+import { OFFICIAL_LOGO_URL } from '../../utils/dynamicBrand';
+
 interface NavbarProps {
   onMenuClick: () => void;
 }
@@ -64,25 +66,32 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   }
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 lg:px-8 sticky top-0 z-30 shadow-sm">
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+    <header className="h-16 bg-[#1B2A4A] border-b border-[#0F172A]/40 flex items-center justify-between px-3 sm:px-4 lg:px-8 sticky top-0 z-30 shadow-md">
+      <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
         <button 
           onClick={onMenuClick}
-          className="p-2 -ml-1 rounded-lg text-slate-500 hover:bg-slate-100 lg:hidden shrink-0"
+          className="p-2 -ml-1 rounded-lg text-white/90 hover:text-white hover:bg-white/15 lg:hidden shrink-0 transition-colors"
           aria-label="Open menu"
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-lg font-bold text-slate-800 hidden sm:block truncate">
+        <h1 className="text-lg font-bold text-white hidden sm:block truncate">
           Welcome back, {profile.ownerName || 'Admin'}
         </h1>
-        <div className="sm:hidden flex flex-col min-w-0">
-          <span className="text-xs font-black text-primary leading-tight uppercase truncate">
-            {profile.stationName || 'Zamzam Fuel'}
-          </span>
-          <span className="text-[10px] text-slate-400 font-semibold truncate leading-none">
-            {profile.ownerName || 'Admin'}
-          </span>
+        <div className="sm:hidden flex items-center gap-2 min-w-0">
+          <img
+            src={OFFICIAL_LOGO_URL}
+            alt="FuelFlow"
+            className="w-8 h-8 rounded-lg object-cover border border-white/30 shrink-0"
+          />
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-black text-white leading-tight uppercase truncate">
+              {profile.stationName || 'FuelFlow'}
+            </span>
+            <span className="text-[10px] text-white/85 font-semibold truncate leading-none mt-0.5">
+              {profile.ownerName || 'Admin'}
+            </span>
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
@@ -92,12 +101,12 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+            className="relative p-2.5 text-white/90 hover:text-white hover:bg-white/15 rounded-full transition-colors"
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
             {notifications.length > 0 && (
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-danger rounded-full border-2 border-white"></span>
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#1B2A4A]"></span>
             )}
           </button>
           <AnimatePresence>
@@ -109,10 +118,10 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                 transition={{ duration: 0.15 }}
                 className="fixed top-[4.25rem] left-3 right-3 sm:absolute sm:top-full sm:left-auto sm:right-0 sm:mt-2 sm:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[100]"
               >
-                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-slate-100 bg-[#F1F5F9] flex items-center justify-between">
                   <h3 className="font-bold text-sm text-slate-800">Notifications</h3>
                   {notifications.length > 0 && (
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#1B2A4A] text-white">
                       {notifications.length} Alert{notifications.length > 1 ? 's' : ''}
                     </span>
                   )}
@@ -125,7 +134,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                   ) : (
                     notifications.map(n => (
                       <div key={n.id} className="p-4 hover:bg-slate-50 transition-colors flex items-start gap-3">
-                        <div className="p-2 bg-amber-100 text-amber-600 rounded-lg shrink-0">
+                        <div className="p-2 bg-[#F1F5F9] text-[#1B2A4A] rounded-lg shrink-0">
                           <AlertTriangle className="w-4 h-4" />
                         </div>
                         <p className="text-sm font-medium text-slate-700 leading-snug pt-0.5">{n.text}</p>
@@ -138,19 +147,19 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
           </AnimatePresence>
         </div>
         
-        <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden sm:block"></div>
+        <div className="h-6 w-[1px] bg-white/25 mx-1 hidden sm:block"></div>
         
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex flex-col items-end">
-            <span className="text-sm font-semibold text-slate-700">{profile.ownerName || user?.displayName || 'Admin'}</span>
-            <span className="text-[11px] text-slate-500">{user?.email}</span>
+            <span className="text-sm font-semibold text-white">{profile.ownerName || user?.displayName || 'Admin'}</span>
+            <span className="text-[11px] text-white/80">{user?.email}</span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white border border-white/25">
             <UserIcon className="w-5 h-5" />
           </div>
           <button 
             onClick={handleSignOut}
-            className="p-2 ml-1 text-slate-400 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+            className="p-2 ml-1 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
             title="Sign Out"
           >
             <LogOut className="w-5 h-5" />

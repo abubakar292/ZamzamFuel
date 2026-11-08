@@ -5,7 +5,7 @@ import { StationProfile } from '../types';
 import { updateAppBrand, getStoredStationName } from '../utils/dynamicBrand';
 
 const defaultProfile: StationProfile = {
-  stationName: 'ZAMZAM',
+  stationName: 'FuelFlow',
   ownerName: '',
   phone: '',
   address: '',
@@ -18,7 +18,11 @@ export function useStationProfile() {
     const cached = user?.uid
       ? localStorage.getItem(`station_name_${user.uid}`)
       : getStoredStationName();
-    return { ...defaultProfile, stationName: cached || 'ZAMZAM' };
+    const cleanCached =
+      cached && cached.toUpperCase() !== 'ZAMZAM' && cached.toUpperCase() !== 'ZAMZAM FUEL STATION'
+        ? cached
+        : 'FuelFlow';
+    return { ...defaultProfile, stationName: cleanCached };
   });
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +38,11 @@ export function useStationProfile() {
     const unsub = onSnapshot(getUserDoc('appSettings', 'profile'), (doc) => {
       if (doc.exists()) {
         const data = doc.data() as Partial<StationProfile>;
+        const rawName = data.stationName?.trim() || localStorage.getItem(userCacheKey) || 'FuelFlow';
         const stationName =
-          data.stationName?.trim() ||
-          localStorage.getItem(userCacheKey) ||
-          'ZAMZAM';
+          rawName.toUpperCase() === 'ZAMZAM' || rawName.toUpperCase() === 'ZAMZAM FUEL STATION'
+            ? 'FuelFlow'
+            : rawName;
         const merged: StationProfile = {
           ...defaultProfile,
           ...data,
@@ -49,7 +54,11 @@ export function useStationProfile() {
         } catch {}
         updateAppBrand(stationName);
       } else {
-        const fallbackName = localStorage.getItem(userCacheKey) || 'ZAMZAM';
+        const rawCached = localStorage.getItem(userCacheKey) || 'FuelFlow';
+        const fallbackName =
+          rawCached.toUpperCase() === 'ZAMZAM' || rawCached.toUpperCase() === 'ZAMZAM FUEL STATION'
+            ? 'FuelFlow'
+            : rawCached;
         setProfile({ ...defaultProfile, stationName: fallbackName });
         updateAppBrand(fallbackName);
       }
@@ -61,7 +70,7 @@ export function useStationProfile() {
 
   const updateProfile = async (newProfile: StationProfile) => {
     if (!user) return;
-    const nameToSet = newProfile.stationName?.trim() || 'ZAMZAM';
+    const nameToSet = newProfile.stationName?.trim() || 'FuelFlow';
     const updated = { ...newProfile, stationName: nameToSet };
 
     try {

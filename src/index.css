@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1A3C6E;
-  --color-primary-light: #2557A7;
-  --color-primary-dark: #0F2548;
-  --color-accent: #E8A020;
-  --color-accent-light: #FEF3C7;
+  --color-primary: #1B2A4A;
+  --color-primary-light: #263B66;
+  --color-primary-dark: #0F172A;
+  --color-accent: #1B2A4A;
+  --color-accent-light: #F1F5F9;
   --color-petrol: #06B6D4;
   --color-diesel: #8B5CF6;
   --color-success: #10B981;
@@ -15,8 +15,8 @@
   --color-warning: #F59E0B;
   --color-warning-bg: #FEF3C7;
   --color-surface: #FFFFFF;
-  --color-surface-2: #F8FAFC;
-  --color-surface-3: #F0F4F8;
+  --color-surface-2: #FAFAFA;
+  --color-surface-3: #FFFFFF;
 
   --font-sans: 'Inter', system-ui, sans-serif;
 
@@ -30,7 +30,7 @@
   --shadow-card: 0 2px 16px rgba(0,0,0,0.06);
   --shadow-card-lg: 0 8px 32px rgba(0,0,0,0.10);
   --shadow-sidebar: 4px 0 24px rgba(0,0,0,0.08);
-  --shadow-glow: 0 0 24px rgba(26,60,110,0.2);
+  --shadow-glow: 0 0 24px rgba(27,42,74,0.28);
 }
 
 @keyframes fadeIn {
@@ -59,5 +59,5 @@
 }
 
 body {
-  @apply bg-surface-3 text-slate-800 antialiased font-sans transition-colors duration-300;
+  @apply bg-white text-slate-800 antialiased font-sans transition-colors duration-300;
 }

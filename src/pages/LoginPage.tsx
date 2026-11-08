@@ -12,7 +12,6 @@ import {
 import { useToast } from '../components/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Flame, 
   Loader2, 
   Eye, 
   EyeOff, 
@@ -23,7 +22,7 @@ import {
   AlertCircle, 
   CheckCircle2
 } from 'lucide-react';
-import { getStoredStationName } from '../utils/dynamicBrand';
+import { OFFICIAL_LOGO_URL } from '../utils/dynamicBrand';
 
 const errorMessages: Record<string, string> = {
   'auth/invalid-credential': 'Invalid email or password. Please try again.',
@@ -41,7 +40,6 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
-  const [stationName] = useState(() => getStoredStationName());
   const [searchParams] = useSearchParams();
   const urlMode = searchParams.get('mode');
   const [mode, setMode] = useState<'signin' | 'signup'>(
@@ -83,7 +81,7 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, cleanEmail, password);
-      showToast(`Welcome back to ${stationName || 'Fuel Station'}!`, 'success');
+      showToast('Welcome back to FuelFlow!', 'success');
       navigate('/');
     } catch (error: any) {
       const code = error?.code || '';
@@ -136,14 +134,11 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
     setLoading(true);
 
     try {
-      // Firebase Auth backend natively guarantees email uniqueness.
-      // If the email is already registered, Firebase automatically rejects it with 'auth/email-already-in-use'.
       const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
       const user = userCredential.user;
 
-      const defaultStationName = 'ZAMZAM Fuel Station';
+      const defaultStationName = 'FuelFlow';
 
-      // Update Firebase Auth user display name
       try {
         await updateProfile(user, {
           displayName: defaultStationName,
@@ -152,7 +147,6 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
         console.warn('Profile display name update non-fatal:', profileErr);
       }
 
-      // Initialize default user appSettings profile in Firestore
       try {
         await setDoc(doc(db, 'users', user.uid, 'appSettings', 'profile'), {
           stationName: defaultStationName,
@@ -165,7 +159,7 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
         console.warn('Initial profile Firestore non-fatal:', firestoreErr);
       }
 
-      showToast('Account created successfully! Welcome to ZAMZAM.', 'success');
+      showToast('Account created successfully! Welcome to FuelFlow.', 'success');
       navigate('/');
     } catch (error: any) {
       const code = error?.code || '';
@@ -186,45 +180,50 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
   };
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4 sm:p-6" 
-      style={{ background: 'linear-gradient(135deg, #1A3C6E 0%, #0F2548 100%)' }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-white relative overflow-hidden">
+      {/* Subtle decorative Deep Midnight Navy ambient accents on white canvas */}
+      <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 rounded-full bg-[#1B2A4A]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-[#1B2A4A]/10 blur-3xl" />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md my-auto"
+        className="w-full max-w-md my-auto relative z-10"
       >
         <motion.div
           animate={errorShake ? { x: [-10, 10, -10, 10, 0] } : {}}
           transition={{ duration: 0.4 }}
-          className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 relative overflow-hidden border border-slate-100"
+          className="bg-white rounded-2xl shadow-[0_12px_40px_rgba(15,23,42,0.14)] p-6 sm:p-8 relative overflow-hidden border border-[#1B2A4A]/20"
         >
-          {/* Header */}
-          <div className="flex flex-col items-center mb-6">
-            <div 
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-3 shadow-lg" 
-              style={{ background: 'linear-gradient(135deg, #E8A020, #D97706)' }}
-            >
-              <Flame className="w-8 h-8 text-white" />
+          {/* Top Deep Midnight Navy accent bar */}
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0F172A] via-[#1B2A4A] to-[#263B66]" />
+
+          {/* Header — Always displays FUELFLOW & Official FuelFlow Logo */}
+          <div className="flex flex-col items-center mb-6 pt-1">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mb-3 shadow-lg shadow-[#1B2A4A]/25 border border-[#1B2A4A]/20">
+              <img
+                src={OFFICIAL_LOGO_URL}
+                alt="FuelFlow Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-wider uppercase truncate max-w-xs text-center">
-              {stationName || 'ZAMZAM'}
+            <h1 className="text-2xl font-black text-[#0F172A] tracking-wider uppercase text-center">
+              FUELFLOW
             </h1>
-            <p className="text-xs font-semibold text-accent tracking-widest uppercase mt-0.5">
+            <p className="text-xs font-semibold text-[#1B2A4A] tracking-widest uppercase mt-0.5">
               Fuel Management System
             </p>
           </div>
 
           {/* Mode Switcher Tabs */}
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-6">
+          <div className="grid grid-cols-2 p-1 bg-[#F1F5F9] rounded-xl mb-6 border border-[#1B2A4A]/15">
             <button
               type="button"
               onClick={() => handleModeChange('signin')}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 mode === 'signin'
-                  ? 'bg-white text-primary shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[#1B2A4A] text-white shadow-sm'
+                  : 'text-slate-600 hover:text-[#1B2A4A]'
               }`}
             >
               <LogIn className="w-4 h-4" />
@@ -235,8 +234,8 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
               onClick={() => handleModeChange('signup')}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 mode === 'signup'
-                  ? 'bg-white text-primary shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[#1B2A4A] text-white shadow-sm'
+                  : 'text-slate-600 hover:text-[#1B2A4A]'
               }`}
             >
               <UserPlus className="w-4 h-4" />
@@ -290,7 +289,7 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                    placeholder="admin@zamzam.com"
+                    placeholder="admin@fuelflow.com"
                     autoComplete="email"
                     required
                   />
@@ -372,7 +371,7 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
                     className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                    placeholder="admin@zamzam.com"
+                    placeholder="admin@fuelflow.com"
                     autoComplete="email"
                     required
                   />
@@ -482,8 +481,8 @@ export default function LoginPage({ initialMode = 'signin' }: LoginPageProps) {
         </motion.div>
 
         {/* Footer info */}
-        <p className="text-center text-white/60 text-xs mt-6">
-          {stationName || 'ZAMZAM'} Fuel Management &bull; Secure Multi-Tenant Architecture
+        <p className="text-center text-slate-400 text-xs mt-6 font-medium">
+          FUELFLOW Fuel Management &bull; Secure Multi-Tenant Architecture
         </p>
       </motion.div>
     </div>

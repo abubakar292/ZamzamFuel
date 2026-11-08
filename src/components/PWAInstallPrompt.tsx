@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, Smartphone, X, CheckCircle, ExternalLink, Share2, PlusSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePWAInstall } from '../hooks/usePWAInstall';
-import { getStoredStationName, getStoredStationIcon, generateStationIcon } from '../utils/dynamicBrand';
+import { getStoredStationName, getStoredStationIcon, generateStationIcon, OFFICIAL_LOGO_URL } from '../utils/dynamicBrand';
 
 export const PWAInstallButton: React.FC<{ className?: string; compact?: boolean }> = ({ 
   className = '', 
@@ -33,8 +33,8 @@ export const PWAInstallButton: React.FC<{ className?: string; compact?: boolean 
         onClick={handleClick}
         className={`flex items-center gap-2 font-semibold transition-all active:scale-95 shadow-sm ${
           compact
-            ? 'px-2.5 py-1.5 rounded-lg text-xs bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold'
-            : 'px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black shadow-md'
+            ? 'px-2.5 py-1.5 rounded-lg text-xs bg-white hover:bg-[#F1F5F9] text-[#1B2A4A] font-bold'
+            : 'px-3.5 py-2 rounded-xl text-xs sm:text-sm bg-white hover:bg-[#F1F5F9] text-[#1B2A4A] font-black shadow-md'
         } ${className}`}
         title="Install / Add Shortcut to Home Screen"
       >
@@ -56,7 +56,7 @@ export const PWAInstallPrompt: React.FC = () => {
 
   useEffect(() => {
     // Check if dismissed in this session
-    const isDismissed = sessionStorage.getItem('zamzam_pwa_dismissed') === 'true';
+    const isDismissed = sessionStorage.getItem('fuelflow_pwa_dismissed') === 'true';
     if (isDismissed) {
       setDismissed(true);
     }
@@ -76,7 +76,7 @@ export const PWAInstallPrompt: React.FC = () => {
 
   const handleDismiss = () => {
     setDismissed(true);
-    sessionStorage.setItem('zamzam_pwa_dismissed', 'true');
+    sessionStorage.setItem('fuelflow_pwa_dismissed', 'true');
   };
 
   const handleInstallClick = async () => {
@@ -102,19 +102,19 @@ export const PWAInstallPrompt: React.FC = () => {
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 50, opacity: 0 }}
-          className="fixed bottom-16 sm:bottom-4 inset-x-3 sm:left-auto sm:right-4 sm:max-w-md z-40"
+          className="fixed bottom-24 sm:bottom-4 inset-x-3 sm:left-auto sm:right-4 sm:max-w-md z-40"
         >
-          <div className="bg-slate-900/95 backdrop-blur-md border border-amber-500/30 rounded-2xl p-4 shadow-2xl text-white flex items-center justify-between gap-3">
+          <div className="bg-white backdrop-blur-md border border-[#1B2A4A]/25 rounded-2xl p-4 shadow-2xl text-slate-800 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 rounded-2xl bg-slate-900 border border-amber-500/40 shadow-md shrink-0 overflow-hidden">
-                <img src={iconUrl || "/pwa-192x192.png"} alt="Shortcut Icon" className="w-full h-full object-cover rounded-2xl" />
+              <div className="w-11 h-11 rounded-2xl border border-[#1B2A4A]/25 shadow-md shrink-0 overflow-hidden">
+                <img src={iconUrl || OFFICIAL_LOGO_URL} alt="Shortcut Icon" className="w-full h-full object-cover rounded-2xl" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-black text-white truncate flex items-center gap-1.5">
+                <p className="text-sm font-black text-slate-800 truncate flex items-center gap-1.5">
                   Install {stationName}
-                  <span className="text-[10px] font-bold bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded uppercase">Fast</span>
+                  <span className="text-[10px] font-bold bg-[#1B2A4A] text-white px-1.5 py-0.2 rounded uppercase">Fast</span>
                 </p>
-                <p className="text-[11px] text-slate-300 line-clamp-1">
+                <p className="text-[11px] text-slate-500 line-clamp-1">
                   Add custom {stationName} shortcut icon to phone screen
                 </p>
               </div>
@@ -123,14 +123,14 @@ export const PWAInstallPrompt: React.FC = () => {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={handleInstallClick}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
+                className="px-3 py-1.5 rounded-lg bg-[#1B2A4A] hover:bg-[#263B66] text-white font-extrabold text-xs shadow-md transition-all active:scale-95 flex items-center gap-1"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install</span>
               </button>
               <button
                 onClick={handleDismiss}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
                 title="Dismiss"
               >
                 <X className="w-4 h-4" />
@@ -173,19 +173,19 @@ export const PWAInstallModal: React.FC<{
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4 flex items-center justify-between text-white">
+        <div className="bg-[#1B2A4A] px-6 py-4 flex items-center justify-between text-white">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-slate-950">
+            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[#1B2A4A] shadow-sm">
               <Smartphone className="w-4 h-4 font-bold" />
             </div>
             <div>
               <h3 className="font-extrabold text-sm sm:text-base leading-tight">Install {stationName} to Home Screen</h3>
-              <p className="text-[11px] text-slate-300">Creates a direct shortcut icon on your phone</p>
+              <p className="text-[11px] text-white/85">Creates a direct shortcut icon on your phone</p>
             </div>
           </div>
           <button 
             onClick={onClose} 
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+            className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/15 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -194,11 +194,11 @@ export const PWAInstallModal: React.FC<{
         {/* Modal Body */}
         <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           {/* Rounded Home Screen Icon Preview */}
-          <div className="flex items-center gap-3.5 p-3.5 bg-gradient-to-r from-slate-50 to-amber-50/50 rounded-2xl border border-slate-200/80">
+          <div className="flex items-center gap-3.5 p-3.5 bg-gradient-to-r from-slate-50 to-[#F1F5F9] rounded-2xl border border-slate-200/80">
             <img 
-              src={iconUrl || "/pwa-192x192.png"} 
+              src={iconUrl || OFFICIAL_LOGO_URL} 
               alt={`${stationName} Shortcut Icon`} 
-              className="w-14 h-14 rounded-2xl shadow-md border border-amber-500/30 shrink-0 bg-slate-900 object-cover" 
+              className="w-14 h-14 rounded-2xl shadow-md border border-[#1B2A4A]/25 shrink-0 object-cover" 
             />
             <div className="min-w-0">
               <h4 className="text-sm font-black text-slate-800 truncate">{stationName} Shortcut</h4>

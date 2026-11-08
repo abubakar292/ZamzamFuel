@@ -1,156 +1,134 @@
 // Utility to dynamically update app branding across:
 // 1. Loading screen splash title
-// 2. Homescreen icon (dynamic Canvas-generated high-res icon)
+// 2. Homescreen icon (Official FuelFlow logo or dynamic Canvas-generated FuelFlow-styled icon)
 // 3. Apple Touch Icon & Favicon
 // 4. Web App Manifest (PWA home screen shortcut name & icons)
 // 5. Document title and OpenGraph / Apple mobile meta tags
 
+export const OFFICIAL_LOGO_URL = '/assets/aistudio/Green__Pink_Simple_Vintage_Retro_Typographic_Out_of_Space_Logo_acd5c053.png';
+
 export function getStoredStationName(): string {
-  if (typeof window === 'undefined') return 'ZAMZAM';
-  return localStorage.getItem('station_name') || 'ZAMZAM';
+  if (typeof window === 'undefined') return 'FuelFlow';
+  const stored = localStorage.getItem('station_name');
+  if (!stored || stored.toUpperCase() === 'ZAMZAM' || stored.toUpperCase() === 'ZAMZAM FUEL STATION') {
+    return 'FuelFlow';
+  }
+  return stored;
 }
 
 export function getStoredStationIcon(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('station_icon_url');
+  if (typeof window === 'undefined') return OFFICIAL_LOGO_URL;
+  const name = getStoredStationName();
+  if (name.toUpperCase() === 'FUELFLOW') {
+    return OFFICIAL_LOGO_URL;
+  }
+  return localStorage.getItem('station_icon_url') || OFFICIAL_LOGO_URL;
 }
 
 /**
- * Draws a high-definition 512x512 or 192x192 app icon with:
- * - Rich navy/sapphire gradient background with subtle gold framing
- * - Vibrant amber fuel flame badge
- * - The Station Name rendered in crisp, bold, uppercase typography
- * - Clean "FUEL MANAGEMENT" tracking sub-label
+ * Draws a high-definition 512x512 or 192x192 app icon matching the official FuelFlow logo:
+ * - Solid #E00000 FuelFlow red background
+ * - Crisp white circular ring in the upper-center
+ * - White fuel pump dispenser with nozzle & hose inside the circle
+ * - Bold condensed white wordmark below (defaults to "FuelFlow" or custom Station Name)
  */
 export function generateStationIcon(stationName: string, size = 512): string {
-  if (typeof document === 'undefined') return '';
-  
+  if (typeof document === 'undefined') return OFFICIAL_LOGO_URL;
+
+  const rawName = (stationName || '').trim();
+  const displayName =
+    !rawName || rawName.toUpperCase() === 'ZAMZAM' || rawName.toUpperCase() === 'FUELFLOW'
+      ? 'FuelFlow'
+      : rawName;
+
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
+  if (!ctx) return OFFICIAL_LOGO_URL;
 
   const scale = size / 512;
-  const cleanName = (stationName.trim() || 'ZAMZAM').toUpperCase();
 
-  // 1. Background gradient
-  const bgGrad = ctx.createLinearGradient(0, 0, size, size);
-  bgGrad.addColorStop(0, '#1A3C6E');
-  bgGrad.addColorStop(0.5, '#132F57');
-  bgGrad.addColorStop(1, '#0B1A32');
-  ctx.fillStyle = bgGrad;
+  // 1. Solid #1B2A4A Deep Midnight Navy background
+  ctx.fillStyle = '#1B2A4A';
   ctx.fillRect(0, 0, size, size);
 
-  // Subtle corner radius clipping (for preview or maskable view)
-  // Outer subtle golden border
-  ctx.strokeStyle = 'rgba(232, 160, 32, 0.45)';
-  ctx.lineWidth = 8 * scale;
-  ctx.strokeRect(10 * scale, 10 * scale, size - 20 * scale, size - 20 * scale);
+  // 2. White Circle Ring (centered at X=256, Y=200, radius=92)
+  const cx = 256 * scale;
+  const cy = 198 * scale;
+  const circleRadius = 92 * scale;
 
-  // Center radial glow
-  const glow = ctx.createRadialGradient(
-    size / 2, 175 * scale, 15 * scale,
-    size / 2, 175 * scale, 150 * scale
-  );
-  glow.addColorStop(0, 'rgba(245, 158, 11, 0.35)');
-  glow.addColorStop(1, 'rgba(245, 158, 11, 0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, size, 340 * scale);
-
-  // 2. Emblem Badge (Golden Flame Container)
-  const badgeSize = 136 * scale;
-  const badgeX = (size - badgeSize) / 2;
-  const badgeY = 80 * scale;
-  const radius = 34 * scale;
-
-  const badgeGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeSize, badgeY + badgeSize);
-  badgeGrad.addColorStop(0, '#F59E0B');
-  badgeGrad.addColorStop(1, '#D97706');
-  ctx.fillStyle = badgeGrad;
-
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 7.5 * scale;
   ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, radius);
-  ctx.fill();
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-  ctx.lineWidth = 3.5 * scale;
+  ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Flame Icon inside badge
-  ctx.save();
-  ctx.translate(size / 2, badgeY + badgeSize / 2);
-  const flameScale = scale * 1.7;
-  ctx.scale(flameScale, flameScale);
+  // 3. White Fuel Pump Dispenser & Nozzle inside the circle
   ctx.fillStyle = '#FFFFFF';
+  ctx.strokeStyle = '#FFFFFF';
 
-  // Flame outline path
-  const flamePath = new Path2D(
-    'M0 -22 C-6 -10 -18 -2 -18 10 C-18 20 -10 26 0 26 C10 26 18 20 18 10 C18 3 12 -4 8 -8 C7 2 3 6 0 7 C-2 3 -1 -4 0 -7 C2 -11 0 -18 0 -22 Z'
-  );
-  ctx.fill(flamePath);
+  // Pump main body (rounded top rectangle)
+  const bodyX = 222 * scale;
+  const bodyY = 152 * scale;
+  const bodyW = 46 * scale;
+  const bodyH = 84 * scale;
+  ctx.beginPath();
+  ctx.roundRect(bodyX, bodyY, bodyW, bodyH, [12 * scale, 12 * scale, 0, 0]);
+  ctx.fill();
 
-  // Inner flame highlight
-  const innerFlameGrad = ctx.createLinearGradient(0, -2, 0, 22);
-  innerFlameGrad.addColorStop(0, '#FEF08A');
-  innerFlameGrad.addColorStop(1, '#F59E0B');
-  ctx.fillStyle = innerFlameGrad;
-  const innerFlame = new Path2D(
-    'M0 6 C-3 10 -6 14 -6 18 C-6 22 -3 24 0 24 C3 24 6 22 6 18 C6 14 3 10 0 6 Z'
-  );
-  ctx.fill(innerFlame);
-  ctx.restore();
+  // Pump screen cutout (#1B2A4A)
+  ctx.fillStyle = '#1B2A4A';
+  ctx.beginPath();
+  ctx.roundRect(231 * scale, 163 * scale, 28 * scale, 25 * scale, 2 * scale);
+  ctx.fill();
 
-  // 3. Station Name
-  // Calculate dynamic font size to fit cleanly on the icon
-  let fontSize = 38 * scale;
-  if (cleanName.length > 22) {
-    fontSize = 22 * scale;
-  } else if (cleanName.length > 16) {
-    fontSize = 26 * scale;
-  } else if (cleanName.length > 11) {
-    fontSize = 31 * scale;
+  // Pump base platform (white pill)
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.roundRect(213 * scale, 232 * scale, 64 * scale, 11 * scale, 5.5 * scale);
+  ctx.fill();
+
+  // Hose & Nozzle on the right side of the pump
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = 6.5 * scale;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Hose loop from side of pump down and up to nozzle
+  ctx.beginPath();
+  ctx.moveTo(268 * scale, 184 * scale);
+  ctx.lineTo(278 * scale, 188 * scale);
+  ctx.lineTo(278 * scale, 228 * scale);
+  ctx.arc(284.5 * scale, 228 * scale, 6.5 * scale, Math.PI, 0, true);
+  ctx.lineTo(291 * scale, 158 * scale);
+  ctx.lineTo(273 * scale, 140 * scale);
+  ctx.stroke();
+
+  // Nozzle trigger guard detail
+  ctx.lineWidth = 4.5 * scale;
+  ctx.beginPath();
+  ctx.moveTo(281 * scale, 148 * scale);
+  ctx.lineTo(281 * scale, 162 * scale);
+  ctx.lineTo(291 * scale, 168 * scale);
+  ctx.stroke();
+
+  // 4. Bold Condensed White Title ("FuelFlow" or custom Station Name)
+  let fontSize = 86 * scale;
+  if (displayName.length > 20) {
+    fontSize = 42 * scale;
+  } else if (displayName.length > 14) {
+    fontSize = 54 * scale;
+  } else if (displayName.length > 10) {
+    fontSize = 68 * scale;
   }
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `800 ${fontSize}px "Inter", system-ui, -apple-system, sans-serif`;
-
-  // Draw soft drop shadow for crisp readability
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-  ctx.shadowBlur = 10 * scale;
-  ctx.shadowOffsetY = 3 * scale;
   ctx.fillStyle = '#FFFFFF';
+  ctx.font = `900 ${fontSize}px Impact, "Arial Black", "Inter", system-ui, sans-serif`;
 
-  const nameY = 282 * scale;
-  ctx.fillText(cleanName, size / 2, nameY, size - 44 * scale);
-
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
-
-  // 4. Subtitle: "FUEL MANAGEMENT"
-  ctx.font = `700 ${14.5 * scale}px "Inter", system-ui, -apple-system, sans-serif`;
-  ctx.fillStyle = '#FBBF24'; // amber-400
-  ctx.fillText('FUEL MANAGEMENT', size / 2, 332 * scale);
-
-  // 5. Bottom badge pill
-  const pillW = 200 * scale;
-  const pillH = 30 * scale;
-  const pillX = (size - pillW) / 2;
-  const pillY = 380 * scale;
-
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-  ctx.beginPath();
-  ctx.roundRect(pillX, pillY, pillW, pillH, 15 * scale);
-  ctx.fill();
-
-  ctx.strokeStyle = 'rgba(232, 160, 32, 0.35)';
-  ctx.lineWidth = 1.5 * scale;
-  ctx.stroke();
-
-  ctx.font = `700 ${11 * scale}px "Inter", system-ui, -apple-system, sans-serif`;
-  ctx.fillStyle = '#E2E8F0';
-  ctx.fillText('1-TAP SHORTCUT', size / 2, pillY + pillH / 2);
+  ctx.fillText(displayName, size / 2, 355 * scale, size - 48 * scale);
 
   return canvas.toDataURL('image/png');
 }
@@ -163,10 +141,16 @@ let activeManifestUrl: string | null = null;
  */
 export function updateAppBrand(stationName: string): { icon192: string; icon512: string } {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return { icon192: '', icon512: '' };
+    return { icon192: OFFICIAL_LOGO_URL, icon512: OFFICIAL_LOGO_URL };
   }
 
-  const cleanName = (stationName || '').trim() || 'ZAMZAM';
+  const rawName = (stationName || '').trim();
+  const cleanName =
+    !rawName || rawName.toUpperCase() === 'ZAMZAM' || rawName.toUpperCase() === 'ZAMZAM FUEL STATION'
+      ? 'FuelFlow'
+      : rawName;
+
+  const isDefaultFuelFlow = cleanName.toUpperCase() === 'FUELFLOW';
 
   // 1. Save to local storage for immediate access on boot
   try {
@@ -176,7 +160,7 @@ export function updateAppBrand(stationName: string): { icon192: string; icon512:
   }
 
   // 2. Update Document Title
-  document.title = `${cleanName} Fuel Management`;
+  document.title = isDefaultFuelFlow ? 'FuelFlow Management' : `${cleanName} — FuelFlow`;
 
   // 3. Update Meta Tags
   const updateMeta = (selector: string, attr: string, value: string) => {
@@ -192,14 +176,15 @@ export function updateAppBrand(stationName: string): { icon192: string; icon512:
     el.setAttribute(attr, value);
   };
 
+  updateMeta('meta[name="theme-color"]', 'content', '#1B2A4A');
   updateMeta('meta[name="apple-mobile-web-app-title"]', 'content', cleanName);
   updateMeta('meta[property="og:title"]', 'content', `${cleanName} Fuel Management`);
-  updateMeta('meta[name="description"]', 'content', `Web version of the ${cleanName} Fuel Management system with real-time sync.`);
-  updateMeta('meta[property="og:description"]', 'content', `Web version of the ${cleanName} Fuel Management system with real-time sync.`);
+  updateMeta('meta[name="description"]', 'content', `${cleanName} fuel station management powered by FuelFlow.`);
+  updateMeta('meta[property="og:description"]', 'content', `${cleanName} fuel station management powered by FuelFlow.`);
 
-  // 4. Generate dynamic brand icons
-  const icon512 = generateStationIcon(cleanName, 512);
-  const icon192 = generateStationIcon(cleanName, 192);
+  // 4. Use official FuelFlow PNG asset when default, or custom FuelFlow-styled icon when station name is customized
+  const icon512 = isDefaultFuelFlow ? OFFICIAL_LOGO_URL : generateStationIcon(cleanName, 512);
+  const icon192 = isDefaultFuelFlow ? OFFICIAL_LOGO_URL : generateStationIcon(cleanName, 192);
 
   if (icon192) {
     try {
@@ -226,32 +211,35 @@ export function updateAppBrand(stationName: string): { icon192: string; icon512:
 
     // 7. Update Web App Manifest dynamically for home screen shortcuts
     try {
+      const origin = window.location.origin;
+      const resolveUrl = (u: string) => (u.startsWith('data:') || u.startsWith('http') ? u : `${origin}${u}`);
+
       const dynamicManifest = {
         id: '/',
-        name: `${cleanName} Fuel Management`,
-        short_name: cleanName,
-        description: `Official management application for ${cleanName}.`,
-        theme_color: '#1A3C6E',
-        background_color: '#0F2548',
+        name: isDefaultFuelFlow ? 'FuelFlow Management' : `${cleanName} Fuel Management`,
+        short_name: cleanName.slice(0, 12),
+        description: `Official FuelFlow management application for ${cleanName}.`,
+        theme_color: '#1B2A4A',
+        background_color: '#1B2A4A',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
-        scope: '/',
+        start_url: `${origin}/`,
+        scope: `${origin}/`,
         icons: [
           {
-            src: icon192,
+            src: resolveUrl(icon192),
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: icon512,
+            src: resolveUrl(icon512),
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: icon512,
+            src: resolveUrl(icon512),
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
@@ -290,11 +278,8 @@ export function updateAppBrand(stationName: string): { icon192: string; icon512:
 
 // Auto-initialize on import if window is present
 if (typeof window !== 'undefined') {
-  const initialName = localStorage.getItem('station_name');
-  if (initialName) {
-    // Run after DOM loaded or microtask
-    setTimeout(() => {
-      updateAppBrand(initialName);
-    }, 50);
-  }
+  const initialName = getStoredStationName();
+  setTimeout(() => {
+    updateAppBrand(initialName);
+  }, 50);
 }

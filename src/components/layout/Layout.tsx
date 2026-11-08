@@ -10,7 +10,7 @@ export default function Layout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-surface-3 flex">
+    <div className="min-h-screen bg-white flex">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block w-[260px] shrink-0">
         <Sidebar />
@@ -20,9 +20,9 @@ export default function Layout() {
       <Sidebar isMobile isOpen={isMobileOpen} onClose={() => setIsMobileOpen(false)} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-white">
         <Navbar onMenuClick={() => setIsMobileOpen(true)} />
-        <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-x-hidden pb-24 lg:pb-8">
+        <main className="flex-1 p-3.5 sm:p-5 md:p-6 lg:p-8 overflow-x-hidden pb-28 lg:pb-8 bg-white">
           <Outlet />
         </main>
       </div>

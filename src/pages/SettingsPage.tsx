@@ -17,7 +17,7 @@ import { useStationProfile } from '../hooks/useStationProfile';
 import { useToast } from '../components/Toast';
 import { PWAInstallButton } from '../components/PWAInstallPrompt';
 import { usePWAInstall } from '../hooks/usePWAInstall';
-import { generateStationIcon, updateAppBrand } from '../utils/dynamicBrand';
+import { generateStationIcon, updateAppBrand, OFFICIAL_LOGO_URL } from '../utils/dynamicBrand';
 import {
   exportFullDatabaseToJson,
   restoreFullDatabaseFromJson,
@@ -45,14 +45,18 @@ export default function SettingsPage() {
   }, [profile]);
 
   const liveIcon = useMemo(() => {
-    return generateStationIcon(formData.stationName || 'ZAMZAM', 192);
+    const clean = (formData.stationName || '').trim();
+    if (!clean || clean.toUpperCase() === 'FUELFLOW' || clean.toUpperCase() === 'ZAMZAM') {
+      return OFFICIAL_LOGO_URL;
+    }
+    return generateStationIcon(clean, 192);
   }, [formData.stationName]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const name = formData.stationName?.trim() || 'ZAMZAM';
+      const name = formData.stationName?.trim() || 'FuelFlow';
       updateAppBrand(name);
 
       await updateProfile({
@@ -193,7 +197,7 @@ export default function SettingsPage() {
                     value={formData.stationName}
                     onChange={handleChange}
                     className="pl-10 pr-3 w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all py-2.5 text-sm font-semibold"
-                    placeholder="Station Name"
+                    placeholder="FuelFlow"
                     required
                   />
                 </div>
@@ -307,7 +311,7 @@ export default function SettingsPage() {
         <section className="bg-white rounded-2xl shadow-card-lg border border-slate-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
             <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-              <Database className="w-5 h-5 text-amber-500" />
+              <Database className="w-5 h-5 text-primary" />
               Data Backup &amp; Restore
             </h2>
           </div>
@@ -317,10 +321,10 @@ export default function SettingsPage() {
               type="button"
               onClick={handleExportBackup}
               disabled={isExporting}
-              className="flex-1 min-h-[46px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-sm shadow-sm active:scale-[0.99] transition-all disabled:opacity-50"
+              className="flex-1 min-h-[46px] flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-sm shadow-sm active:scale-[0.99] transition-all disabled:opacity-50"
             >
               {isExporting ? (
-                <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Download className="w-4 h-4" />
               )}
@@ -354,22 +358,22 @@ export default function SettingsPage() {
               <img
                 src={liveIcon}
                 alt="App Icon"
-                className="w-12 h-12 rounded-2xl shadow-sm border border-amber-500/30 shrink-0 object-cover bg-slate-900"
+                className="w-12 h-12 rounded-2xl shadow-sm border border-[#1B2A4A]/20 shrink-0 object-cover"
               />
               <div>
                 <h2 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-amber-500" />
+                  <Smartphone className="w-4 h-4 text-primary" />
                   Home Screen App
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {isInstalled
                     ? 'Installed on this device'
-                    : `Install ${formData.stationName || 'Station'} shortcut`}
+                    : `Install ${formData.stationName || 'FuelFlow'} shortcut`}
                 </p>
               </div>
             </div>
             {!isInstalled ? (
-              <PWAInstallButton className="w-full sm:w-auto justify-center shrink-0" />
+              <PWAInstallButton className="w-full sm:w-auto justify-center shrink-0 !bg-primary !text-white hover:!bg-primary-light" />
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs">
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -385,7 +389,7 @@ export default function SettingsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden p-5 space-y-4">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-[#F1F5F9] text-[#1B2A4A] flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div className="min-w-0">
@@ -415,10 +419,10 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleConfirmRestore}
                 disabled={isRestoring}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-light text-white font-bold text-xs shadow-sm disabled:opacity-50"
               >
                 {isRestoring ? (
-                  <div className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <Upload className="w-4 h-4" />
                 )}
